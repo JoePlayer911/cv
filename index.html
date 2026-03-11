@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jonathan Ie — Portfolio</title>
+  <meta name="description" content="Jonathan Ie's portfolio — Software Developer & AI Enthusiast. Explore interactive projects, games, and AI-powered learning tools." />
+  <meta property="og:title" content="Jonathan Ie — Portfolio" />
+  <meta property="og:description" content="Software Developer & AI Enthusiast. Interactive projects, games, and AI learning tools." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="site-nav" id="site-nav">
+    <div class="container">
+      <a href="#about" class="nav-link active">About</a>
+      <a href="#skills" class="nav-link">Skills</a>
+      <a href="#projects" class="nav-link">Projects</a>
+      <a href="#contact" class="nav-link">Contact</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero" id="hero">
+    <div class="hero__avatar-wrap">
+      <img
+        src="https://blogger.googleusercontent.com/img/a/AVvXsEhVThgOKLTwzOXak-YslJPsA5hUm2ZH3lNFNWf8XeIZl66VkKPD-9o0esq65G52gtTphTuYP6srRJaQYjaQq_bWAwL_ZB24T2fY9Rt4dEskkTdtdQOHj3McYLTqvCMWpft-Hp5bb521em3H_mQHKC7tQH3EWkYRW5hhsKsPvz0Kj38uU0K7dtFpE4DoOuM"
+        alt="Jonathan Ie"
+        class="hero__avatar"
+        width="150"
+        height="150"
+      />
+    </div>
+    <h1 class="hero__title">Jonathan Ie</h1>
+    <p class="hero__subtitle">Software Developer · AI Enthusiast</p>
+    <button class="hero__cta" onclick="document.getElementById('projects').scrollIntoView({behavior:'smooth'})">
+      Explore My Work
+    </button>
+  </header>
+
+  <main>
+    <!-- About -->
+    <section class="section container reveal" id="about">
+      <h2 class="section__heading">About Me</h2>
+      <p class="about__text">
+        Hi! I'm Jonathan, a passionate software developer with a knack for
+        creating AI-powered solutions and engaging projects. I love learning
+        new technologies and turning ideas into reality.
+      </p>
+    </section>
+
+    <!-- Skills -->
+    <section class="section container reveal" id="skills">
+      <h2 class="section__heading">Skills</h2>
+      <div class="skills-grid" id="skills-grid">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+
+    <!-- Projects -->
+    <section class="section container reveal" id="projects">
+      <h2 class="section__heading">Projects</h2>
+      <div class="projects-grid" id="projects-grid">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer / Contact -->
+  <footer class="site-footer container" id="contact">
+    <h2 class="site-footer__heading">Get in Touch</h2>
+    <div class="site-footer__links">
+      <a href="mailto:jnthnie@gmail.com" class="site-footer__link">✉️ Gmail</a>
+      <a href="https://www.linkedin.com/in/jonathan-ie/" target="_blank" rel="noopener noreferrer" class="site-footer__link">🔗 LinkedIn</a>
+      <a href="https://github.com/JoePlayer911" target="_blank" rel="noopener noreferrer" class="site-footer__link">🐙 GitHub</a>
+    </div>
+    <p class="site-footer__copy">© 2026 Jonathan Ie. All rights reserved.</p>
+  </footer>
+
+  <script>
+    /* ── Data ────────────────────────────────────────────── */
+
+    const skills = [
+      { name: 'HTML / CSS',   level: 90 },
+      { name: 'JavaScript',   level: 85 },
+      { name: 'Python',       level: 75 },
+      { name: 'TensorFlow',   level: 70 },
+      { name: 'Node.js',      level: 60 },
+    ];
+
+    const projects = [
+      {
+        title: "Xingqiu's Novel Adventure",
+        url: 'xingqiu.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEgHk3Q-_Ih12oDYoH1EdHkxvsWcY5wsy8GISLeuHOYYUJ7UGF5jkldhBsZzdUScR4RqayMozkEfkntsPIyIAzeqjLRaPbhac8W9omBKlPlV0pz3_nePtBGC9XpKrzGl5yXxxvRC0eyLAUzA1EW5kb9PObksujRq6fejbFJd9oWbBml2w7PKFnx71DBS_Tw',
+        description: 'Explore the vast vocabularies along with Xingqiu.',
+      },
+      {
+        title: 'Logic Computer — Now on the Web',
+        url: 'https://logiccomputer.pythonanywhere.com/',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEhAxdXWFWrI-OVrle66Kxhei58tHfzIKWBp-Bjg6bgZSlhC0QHofrDQes7svNpmq_KIbESkv8K1e4zW-__SxzxouVx3483vVg7CadZwVISi-aH6O_dfYn1vw4bbjw1FOdioBLNwAQxJ1XQH9KPqw-bSFKAYixJp0qZTYDZ2DEadqbPh74qTzW-Hgpt3wiU',
+        description: "Yeah, it's for my dearest Dad. His store deserves more.",
+      },
+      {
+        title: 'Lidya AI',
+        url: 'https://logiccomputer.pythonanywhere.com/aissistant',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEia6HuEAdeHkPUILYawUKCwHnV-oOJZA5T9KBpDHEEB6AlzcBcOCREFnlWgn1vQVMgnZk5tZAVPx-EOeMkgNQfnjxxprEY81DMKWvQfycoQtl_MvA7LiwIHgQmfRd2hjR822p_bT8ImYa149t7E_KCBrIShy68DIJDHVdRcfvpna2wY4PKtI4ogG-a9ixU',
+        description: "Meet Lidya, Logic Computer's Trustworthy Receptionist.",
+      },
+      {
+        title: 'Quiz on Web',
+        url: 'quiz.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEiFOzNzgpulp6qniHaMzbYH8G-gX_0ci_fKgg9Bz0wpEc4HkfYBdkeAADVEJH0iqm0fqEjYcwDKZ_TURFlUMC9J-HOck7wnL45WlIUqun00-gqqdfLXAamE-kSDjd63ywNAyHZAOpu9lYy2nwi4iZp6BqSsXpl6RTnTSys5ao4FcWcVAoA6Yxqj65zBxo4',
+        description: 'A simple, yet very useful quiz app with save & load feature for practicing your language. A duolingo-lite!',
+      },
+      {
+        title: 'LLM Powered Quiz',
+        url: 'llmquiz.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEhLSIbbwrVKdgRJmgncAiMBd8ZSk09ZblHnjnVBBTHTJ6HlsoIsYnJDKo9wtGtC2T7453Z6ctlOCRyG4JfLQ5K-bG2Hw-oIw9fJFNbxRFxmkkf9UoLLSRBtzLIJkvL2fiqnnMZAlpHNSDYesgpQyC1G-4nk4nfAmZF-jyTRb2Y8xJA9uhjpPduDd4yK5aU',
+        description: 'A more advanced, unrestrained quiz app with save & load feature for practicing your language. A duolingo-LLM!',
+      },
+      {
+        title: 'ClozeLLM',
+        url: 'clozellm.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEhLSIbbwrVKdgRJmgncAiMBd8ZSk09ZblHnjnVBBTHTJ6HlsoIsYnJDKo9wtGtC2T7453Z6ctlOCRyG4JfLQ5K-bG2Hw-oIw9fJFNbxRFxmkkf9UoLLSRBtzLIJkvL2fiqnnMZAlpHNSDYesgpQyC1G-4nk4nfAmZF-jyTRb2Y8xJA9uhjpPduDd4yK5aU',
+        description: 'Delve into fresh stories while learning new language! ClozeLLM will pick 5 random vocabs to train and generates new stories everytime!',
+      },
+      {
+        title: 'Feud Quiz',
+        url: 'feud.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEgDiynBLp1NyWyFPegKNK66taUK8hB7jfo8I-An0RCidaFVF_2HfDw7I3MR8MO8I2UQvYEmCHFG2Xxb5cndm-Q8OEP-Mb4OeOg9CimAjEoE_2b_ZQLhmdFYXzYXZK4Osh74aICs758aWFKJYdQQ5-g8ucpoLR2ftOpmbk9zYNXa1zpW0CY1ymLhSu_nCKk=w320-h151',
+        description: 'Play Family Feud with your families on the web! For my dearest students!',
+      },
+      {
+        title: 'Runner Quiz',
+        url: 'runner.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEjQ6P7sHPEaofu0h52R2pEv7_wiR7am6tDdCMKtuuMU3l7PjCDHMeA8pukDzkMJGQ9qd5UFhiBxnRLGKE9HRD8unm4KGH6wIv-bzuXr4_tNX19DsdkXKMkUwaetO5DTXcLojGLLEgu377HSgp_qCT_jOggYhLQRQOSdp7aCiqfFZ9jDsSqJsfqJa6Nqg0s',
+        description: 'Play up to 4 players in this Math & English runner quiz game! For my dearest students!',
+      },
+      {
+        title: 'Protect Mondstadt',
+        url: 'shooter.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEgHk3Q-_Ih12oDYoH1EdHkxvsWcY5wsy8GISLeuHOYYUJ7UGF5jkldhBsZzdUScR4RqayMozkEfkntsPIyIAzeqjLRaPbhac8W9omBKlPlV0pz3_nePtBGC9XpKrzGl5yXxxvRC0eyLAUzA1EW5kb9PObksujRq6fejbFJd9oWbBml2w7PKFnx71DBS_Tw',
+        description: 'Shoot slimes using the correct pinyin answer! A vocabulary shooter game.',
+      },
+      {
+        title: 'Vocab Hunt',
+        url: 'vocabhunt.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEhLSIbbwrVKdgRJmgncAiMBd8ZSk09ZblHnjnVBBTHTJ6HlsoIsYnJDKo9wtGtC2T7453Z6ctlOCRyG4JfLQ5K-bG2Hw-oIw9fJFNbxRFxmkkf9UoLLSRBtzLIJkvL2fiqnnMZAlpHNSDYesgpQyC1G-4nk4nfAmZF-jyTRb2Y8xJA9uhjpPduDd4yK5aU',
+        description: 'Guess the word from LLM-generated hints! A vocabulary hunting game.',
+      },
+      {
+        title: 'Word Safari',
+        url: 'wordsafari.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEiFOzNzgpulp6qniHaMzbYH8G-gX_0ci_fKgg9Bz0wpEc4HkfYBdkeAADVEJH0iqm0fqEjYcwDKZ_TURFlUMC9J-HOck7wnL45WlIUqun00-gqqdfLXAamE-kSDjd63ywNAyHZAOpu9lYy2nwi4iZp6BqSsXpl6RTnTSys5ao4FcWcVAoA6Yxqj65zBxo4',
+        description: 'Learn English with fun emoji-based word matching! For young learners.',
+      },
+      {
+        title: 'Gemini TTS + Live2D',
+        url: 'gemini.html',
+        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEia6HuEAdeHkPUILYawUKCwHnV-oOJZA5T9KBpDHEEB6AlzcBcOCREFnlWgn1vQVMgnZk5tZAVPx-EOeMkgNQfnjxxprEY81DMKWvQfycoQtl_MvA7LiwIHgQmfRd2hjR822p_bT8ImYa149t7E_KCBrIShy68DIJDHVdRcfvpna2wY4PKtI4ogG-a9ixU',
+        description: 'Chat with a Live2D character powered by LLM7 and Gemini text-to-speech.',
+      },
+    ];
+
+    /* ── Render Skills ───────────────────────────────────── */
+
+    const skillsGrid = document.getElementById('skills-grid');
+    skills.forEach(skill => {
+      const card = document.createElement('div');
+      card.className = 'skill-card';
+      card.innerHTML = `
+        <div class="skill-card__header">
+          <span class="skill-card__name">${skill.name}</span>
+          <span class="skill-card__pct">${skill.level}%</span>
+        </div>
+        <div class="skill-bar">
+          <div class="skill-bar__fill" data-level="${skill.level}"></div>
+        </div>
+      `;
+      skillsGrid.appendChild(card);
+    });
+
+    /* ── Render Projects ─────────────────────────────────── */
+
+    const projectsGrid = document.getElementById('projects-grid');
+    projects.forEach(project => {
+      const isExternal = project.url.startsWith('http');
+      const card = document.createElement('a');
+      card.className = 'project-card';
+      card.href = project.url;
+      if (isExternal) {
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+      }
+      card.innerHTML = `
+        <img class="project-card__img" src="${project.thumbnail}" alt="${project.title}" loading="lazy" />
+        <div class="project-card__body">
+          <h3 class="project-card__title">${project.title}</h3>
+          <p class="project-card__desc">${project.description}</p>
+        </div>
+      `;
+      projectsGrid.appendChild(card);
+    });
+
+    /* ── Scroll Reveal (Intersection Observer) ───────────── */
+
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    /* ── Skill Bar Animation ─────────────────────────────── */
+
+    const skillObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.querySelectorAll('.skill-bar__fill').forEach(bar => {
+              bar.style.width = bar.dataset.level + '%';
+            });
+            skillObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+
+    skillObserver.observe(document.getElementById('skills-grid'));
+
+    /* ── Active Nav Highlight ────────────────────────────── */
+
+    const navLinks = document.querySelectorAll('.nav-link');
+    const sectionRefs = document.querySelectorAll('section[id], header[id], footer[id]');
+
+    const navObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const id = entry.target.id;
+            navLinks.forEach(link => {
+              link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+            });
+          }
+        });
+      },
+      { rootMargin: '-40% 0px -55% 0px' }
+    );
+
+    sectionRefs.forEach(sec => navObserver.observe(sec));
+  </script>
+
+</body>
+</html>

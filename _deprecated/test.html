@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Touch Quiz Run</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#fff;
+    font-family:sans-serif;user-select:none;touch-action:none}
+  #menu,#game{position:absolute;inset:0;display:flex;flex-direction:column;
+    justify-content:center;align-items:center}
+  #menu{background:linear-gradient(135deg,#333,#000)}
+  #menu h1{font-size:3em;margin-bottom:1em}
+  button{background:#44aaff;color:#fff;border:none;border-radius:10px;
+    padding:15px 40px;font-size:1.2em;margin:10px;cursor:pointer}
+  button.selected{background:#ff7733}
+  #game{display:none;background:#222;overflow:hidden}
+  #joinMsg{position:absolute;top:30px;font-size:1.5em}
+  .player{position:absolute;width:80px;height:80px;transform:translate(-50%,-50%);
+    pointer-events:none;transition:left 0.05s linear, top 1s ease;}
+  #countdown{position:absolute;top:50%;transform:translateY(-50%);font-size:8em;
+    color:#0f0;display:none}
+  #road{position:absolute;inset:0;background:#333;overflow:hidden}
+  .laneMark{position:absolute;width:6px;height:80px;background:#eee;opacity:0.4}
+  #questionBox{position:absolute;top:20px;left:50%;transform:translateX(-50%);
+    background:#0008;padding:10px 20px;border-radius:10px;font-size:1.5em}
+  .block{position:absolute;width:30%;height:100px;background:#555;border-radius:20px;
+    color:white;display:flex;justify-content:center;align-items:center;
+    font-size:1.3em;top:-150px;transition:top 0.02s linear}
+  #timerBox{position:absolute;top:70px;right:20px;background:#0008;
+    padding:8px 15px;border-radius:10px;font-size:1.5em;color:#0f0;font-weight:bold;}
+  /* 🏆 Podium styles */
+  #podiumOverlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    display: none;
+    justify-content: center;
+    align-items: flex-end;
+    flex-direction: column;
+    text-align: center;
+    color: #fff;
+    animation: fadeIn 1s forwards;
+    z-index: 999;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .podium {
+    position: relative;
+    width: 80%;
+    height: 300px;
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    margin-bottom: 60px;
+  }
+  .podium-step {
+    width: 20%;
+    background: linear-gradient(180deg,#666,#333);
+    border-radius: 10px 10px 0 0;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding-bottom: 10px;
+  }
+  .rankLabel {
+    position: absolute;
+    top: -40px;
+    font-size: 2em;
+    font-weight: bold;
+  }
+  .scoreLabel {
+    position: absolute;
+    bottom: -35px;
+    font-size: 1.2em;
+    color: #0f0;
+  }
+  #restartBtn {
+    margin-bottom: 40px;
+    background:#ff7733;
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:15px 40px;
+    font-size:1.2em;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="menu">
+  <h1>Touch Quiz Run</h1>
+  <div>
+    <button id="mathBtn">🧮 Math</button>
+    <button id="engBtn">📚 English</button>
+  </div>
+  <button id="startBtn" disabled>Start</button>
+</div>
+
+<div id="game">
+  <div id="road"></div>
+  <div id="questionBox"></div>
+  <div id="timerBox">⏱️ 60</div>
+  <div id="joinMsg">Touch and hold to join (1–4 players)</div>
+  <div id="countdown"></div>
+
+  <!-- 🏆 Podium -->
+  <div id="podiumOverlay">
+    <div class="podium" id="podiumSteps"></div>
+    <button id="restartBtn">↻ Restart</button>
+  </div>
+</div>
+
+<script>
+const mathBtn=document.getElementById('mathBtn'),
+      engBtn=document.getElementById('engBtn'),
+      startBtn=document.getElementById('startBtn'),
+      menu=document.getElementById('menu'),
+      game=document.getElementById('game'),
+      joinMsg=document.getElementById('joinMsg'),
+      countdownEl=document.getElementById('countdown'),
+      road=document.getElementById('road'),
+      questionBox=document.getElementById('questionBox');
+
+let mode=null;
+mathBtn.onclick=()=>{mode='math';mathBtn.classList.add('selected');engBtn.classList.remove('selected');startBtn.disabled=false;}
+engBtn.onclick=()=>{mode='english';engBtn.classList.add('selected');mathBtn.classList.remove('selected');startBtn.disabled=false;}
+startBtn.onclick=()=>{menu.style.display='none';game.style.display='flex';initTouchSetup();};
+
+const sprites=[
+  'https://cdn-icons-png.flaticon.com/512/616/616408.png',
+  'https://cdn-icons-png.flaticon.com/512/616/616430.png',
+  'https://cdn-icons-png.flaticon.com/512/616/616404.png',
+  'https://cdn-icons-png.flaticon.com/512/616/616494.png'
+];
+
+let gameStarted=false;
+
+function initTouchSetup(){
+  const players=[],activeTouches={};
+  let countdownTimer=null,countdownValue=3,lastChangeTime=0,stableChecker=null,joinLocked=false;
+
+  function resetCountdown(){if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null;}
+    countdownEl.style.display='none';countdownValue=3;joinLocked=false;}
+  function startCountdown(){if(countdownTimer)return;joinLocked=true;
+    countdownValue=3;countdownEl.textContent=countdownValue;countdownEl.style.display='block';
+    countdownTimer=setInterval(()=>{countdownValue--;
+      if(countdownValue<=0){clearInterval(countdownTimer);countdownTimer=null;
+        countdownEl.style.display='none';if(stableChecker)clearInterval(stableChecker);
+        startGame(players);}else countdownEl.textContent=countdownValue;},1000);}
+  function checkStable(){const now=performance.now();
+    if(now-lastChangeTime>1000&&Object.keys(activeTouches).length>0)startCountdown();}
+  function assignNewPlayer(touch){
+    if (joinLocked || gameStarted) return;
+    if (players.length >= 4) return;
+    if (touch.clientY < window.innerHeight * 0.5) return;
+    const img=document.createElement('img');img.src=sprites[players.length];
+    img.className='player';img.style.left=`${touch.clientX}px`;
+    img.style.top=`${touch.clientY}px`;game.appendChild(img);
+    const scoreEl=document.createElement('div');
+    scoreEl.style.position='absolute';scoreEl.style.left='10px';
+    scoreEl.style.top=30*players.length+10+'px';
+    scoreEl.style.fontSize='1.2em';
+    scoreEl.textContent=`P${players.length+1}: 0`;
+    game.appendChild(scoreEl);
+    const p={id:touch.identifier,x:touch.clientX,y:touch.clientY,img,alive:true,score:0,scoreEl};
+    players.push(p);activeTouches[touch.identifier]=players.length-1;}
+  document.addEventListener('touchstart',e=>{
+    resetCountdown();lastChangeTime=performance.now();
+    for(const t of e.changedTouches){
+      let rec=false;
+      for(let i=0;i<players.length;i++){
+        const p=players[i];
+        if(p.id===null){
+          const dx=p.x-t.clientX,dy=p.y-t.clientY;
+          if(Math.abs(dx)<100&&Math.abs(dy)<100){p.id=t.identifier;activeTouches[t.identifier]=i;rec=true;break;}
+        }
+      }
+      if(!rec)assignNewPlayer(t);
+    }
+  });
+  document.addEventListener('touchmove',e=>{
+    for(const t of e.changedTouches){
+      const idx=activeTouches[t.identifier];
+      if(idx!==undefined){const p=players[idx];
+        p.x=t.clientX;p.y=t.clientY;p.img.style.left=`${p.x}px`;p.img.style.top=`${p.y}px`;}
+    }
+  });
+  document.addEventListener('touchend',e=>{
+    resetCountdown();lastChangeTime=performance.now();
+    for(const t of e.changedTouches){
+      const idx=activeTouches[t.identifier];
+      if(idx!==undefined){const p=players[idx];delete activeTouches[t.identifier];p.id=null;}
+    }
+  });
+  stableChecker=setInterval(checkStable,500);
+}
+
+// 🎮 Game
+function startGame(players){
+  gameStarted=true;
+  joinMsg.style.display='none';countdownEl.style.display='none';
+  const laneWidth=window.innerWidth/3,laneXs=[laneWidth/2,laneWidth*1.5,laneWidth*2.5];
+  const dashCount=20,dashGap=120,dashes=[];
+  for(let i=0;i<dashCount;i++){
+    for(let j=0;j<2;j++){
+      const dash=document.createElement('div');
+      dash.className='laneMark';dash.style.left=`${laneWidth*(j+1)-3}px`;
+      dash.style.top=`${i*dashGap}px`;
+      road.appendChild(dash);dashes.push(dash);
+    }
+  }
+  let offset=0;function animateRoad(){offset=(offset+4)%dashGap;
+    dashes.forEach(d=>d.style.transform=`translateY(${offset}px)`);requestAnimationFrame(animateRoad);}
+  animateRoad();
+
+  players.forEach(p=>{p.img.style.top=`${window.innerHeight-150}px`;});
+
+  const mathQs=[
+    {q:'3+4',a:['5','7','9'],correct:'7'},
+    {q:'8-3',a:['5','4','6'],correct:'5'},
+    {q:'6+2',a:['8','9','7'],correct:'8'},
+  ];
+  const engQs=[
+    {q:'animal',a:['car','lion','chair'],correct:'lion'},
+    {q:'fruit',a:['apple','pen','shoe'],correct:'apple'},
+    {q:'vehicle',a:['dog','table','bus'],correct:'bus'}
+  ];
+  const questions=mode==='math'?mathQs:engQs;
+  let qIndex=0,activeBlocks=[],blockSpeed=3,gameTime=60000,startTime=Date.now();
+  const timerBox=document.getElementById('timerBox');
+
+  function popupText(text,x,y,color="#0f0"){
+    const el=document.createElement('div');
+    el.textContent=text;
+    el.style.position='absolute';
+    el.style.left=x+'px';
+    el.style.top=y+'px';
+    el.style.transform='translate(-50%,-50%)';
+    el.style.color=color;
+    el.style.fontSize='2em';
+    el.style.fontWeight='bold';
+    el.style.pointerEvents='none';
+    game.appendChild(el);
+    let opacity=1;
+    const int=setInterval(()=>{y-=2;opacity-=0.05;el.style.top=y+'px';el.style.opacity=opacity;
+      if(opacity<=0){clearInterval(int);el.remove();}},30);
+  }
+
+  function spawnQuestion(){
+    if(qIndex>=questions.length)qIndex=0;
+    const q=questions[qIndex++];
+    questionBox.textContent=q.q;
+    activeBlocks.forEach(b=>b.remove());activeBlocks=[];
+    for(let i=0;i<3;i++){
+      const block=document.createElement('div');
+      block.className='block';
+      block.textContent=q.a[i];
+      block.dataset.correct=(q.a[i]===q.correct);
+      block.style.left=`${laneXs[i]-laneWidth*0.15}px`;
+      block.style.width=`${laneWidth*0.3}px`;
+      road.appendChild(block);
+      activeBlocks.push(block);
+    }
+  }
+  spawnQuestion();
+
+  function moveBlocks(){
+    const now=Date.now();
+    const elapsed=now-startTime;
+    const timeLeft=Math.max(0,Math.ceil((gameTime-elapsed)/1000));
+    timerBox.textContent=`⏱️ ${timeLeft}`;
+    if(timeLeft<=0){endGame(players);return;}
+    const alivePlayers=players.filter(p=>p.alive);
+    if(alivePlayers.length===0){endGame(players);return;}
+    activeBlocks.forEach(block=>{
+      const top=parseFloat(block.style.top||'-150')+blockSpeed;
+      block.style.top=top+'px';
+      if(top>window.innerHeight-260&&top<window.innerHeight-200){
+        players.forEach(p=>{
+          if(!p.alive)return;
+          const lane=Math.floor(p.x/laneWidth);
+          const blkLane=Math.floor(parseFloat(block.style.left)/laneWidth);
+          if(lane===blkLane){
+            if(block.dataset.correct==='true'){
+              p.score+=5;p.scoreEl.textContent=`P${players.indexOf(p)+1}: ${p.score}`;
+              popupText("+5",p.x,p.y-100,"#0f0");
+            }else{
+              p.alive=false;p.img.style.opacity=0.3;popupText("X",p.x,p.y-100,"#f00");
+            }
+          }
+        });
+      }
+      if(top>window.innerHeight+150){block.remove();}
+    });
+    activeBlocks=activeBlocks.filter(b=>b.parentElement);
+    if(activeBlocks.length===0)spawnQuestion();
+    requestAnimationFrame(moveBlocks);
+  }
+  moveBlocks();
+}
+
+// 🏆 Endgame podium
+function endGame(players) {
+  gameStarted = false;
+
+  // Clear question and blocks
+  questionBox.textContent = '';
+  document.querySelectorAll('.block').forEach(b => b.remove());
+
+  // Remove timer text
+  const timerBox = document.getElementById('timerBox');
+  timerBox.style.display = 'none';
+
+  // Create podium overlay
+  const podium = document.createElement('div');
+  podium.style.position = 'absolute';
+  podium.style.inset = 0;
+  podium.style.background = 'linear-gradient(180deg,#222,#000)';
+  podium.style.display = 'flex';
+  podium.style.flexDirection = 'column';
+  podium.style.alignItems = 'center';
+  podium.style.justifyContent = 'flex-end';
+  podium.style.paddingBottom = '100px';
+  podium.style.transition = 'opacity 0.5s';
+  podium.style.zIndex = 9999;
+  game.appendChild(podium);
+
+  const title = document.createElement('h1');
+  title.textContent = "🏆 Final Results 🏆";
+  title.style.marginBottom = '60px';
+  title.style.color = '#ffb347';
+  podium.appendChild(title);
+
+  // Sort players by score descending
+  const ranked = [...players].sort((a, b) => b.score - a.score);
+
+  // Podium layout heights
+  const heights = ['280px', '220px', '180px', '150px']; // 1st tallest, etc.
+
+  const podiumContainer = document.createElement('div');
+  podiumContainer.style.display = 'flex';
+  podiumContainer.style.justifyContent = 'center';
+  podiumContainer.style.alignItems = 'flex-end';
+  podiumContainer.style.gap = '30px';
+  podiumContainer.style.width = '100%';
+  podium.appendChild(podiumContainer);
+
+  ranked.forEach((p, i) => {
+    const place = i + 1;
+
+    const column = document.createElement('div');
+    column.style.display = 'flex';
+    column.style.flexDirection = 'column';
+    column.style.alignItems = 'center';
+
+    // Character sprite
+    const img = document.createElement('img');
+    img.src = p.img.src;
+    img.style.width = '80px';
+    img.style.height = '80px';
+    img.style.objectFit = 'contain';
+    img.style.marginBottom = '10px';
+    column.appendChild(img);
+
+    // Podium block
+    const block = document.createElement('div');
+    block.style.width = '100px';
+    block.style.height = heights[i] || '120px';
+    block.style.background = place === 1 ? '#ffd700'
+                      : place === 2 ? '#c0c0c0'
+                      : place === 3 ? '#cd7f32'
+                      : '#444';
+    block.style.borderRadius = '10px 10px 0 0';
+    block.style.display = 'flex';
+    block.style.flexDirection = 'column';
+    block.style.justifyContent = 'center';
+    block.style.alignItems = 'center';
+    block.style.color = '#000';
+    block.style.fontWeight = 'bold';
+    block.innerHTML = `#${place}<br>${p.score} pts`;
+    column.appendChild(block);
+
+    podiumContainer.appendChild(column);
+  });
+
+  // Add restart button
+  const restartBtn = document.createElement('button');
+  restartBtn.textContent = 'Play Again';
+  restartBtn.style.marginTop = '60px';
+  restartBtn.style.padding = '15px 40px';
+  restartBtn.style.fontSize = '1.2em';
+  restartBtn.style.border = 'none';
+  restartBtn.style.borderRadius = '10px';
+  restartBtn.style.background = '#44aaff';
+  restartBtn.style.color = '#fff';
+  restartBtn.style.cursor = 'pointer';
+  restartBtn.onclick = () => location.reload();
+  podium.appendChild(restartBtn);
+}
+</script>
+</body>
+</html>

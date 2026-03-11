@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Class Feud: English Vocab (Grades 1-2)</title>
+  <link rel="stylesheet" href="projects.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.20.3/TweenMax.min.js"></script>
+  <style>
+    /* keep your original styling mostly unchanged */
+    html {
+      height: 100%;
+      width: 100%;
+    }
+
+    body {
+      background: #a7cfdf;
+      background: linear-gradient(to bottom, #a7cfdf 0%, #23538a 100%);
+      padding: 25px;
+      height: 100%;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      font-family: helvetica, sans-serif;
+    }
+
+    .gameBoard .cardHolder>div,
+    .gameBoard .LBG {
+      background: linear-gradient(to bottom, #cedbe9 0%, #aac5de 17%, #6199c7 50%, #3a84c3 51%, #419ad6 59%, #4bb8f0 71%, #3a8bc2 84%, #26558b 100%);
+    }
+
+    .gameBoard .cardHolder>div:empty,
+    .gameBoard .score,
+    .gameBoard .button,
+    .gameBoard .DBG {
+      background: linear-gradient(to bottom, #7db9e8 0%, #207cca 49%, #2989d8 50%, #1e5799 100%);
+    }
+
+    .gameBoard {
+      position: relative;
+      color: white;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 1);
+      border: 5px solid #003c7b;
+      text-align: center;
+      padding: 150px;
+      border-radius: 50%;
+      max-width: 1000px;
+      max-height: 800px;
+      min-width: 305px;
+      margin: auto;
+      background: url('https://s3-us-west-2.amazonaws.com/s.cdpn.io/40041/bgFF.svg') #0C4779 center center repeat;
+      box-shadow: 0 1px 24px 1px rgba(0, 0, 0, 0.48);
+    }
+
+    .gameBoard .score {
+      position: absolute;
+      font-size: 45px;
+      height: 50px;
+      line-height: 50px;
+      width: 75px;
+      padding: 20px;
+      border: 2px solid white;
+      box-shadow: inset 0 1px 24px 1px rgba(0, 0, 0, 0.48);
+    }
+
+    .gameBoard .score#boardScore {
+      height: 75px;
+      line-height: 75px;
+      width: 125px;
+      font-size: 65px;
+      position: absolute;
+      left: 50%;
+      top: 20px;
+      transform: translateX(-50%);
+      margin: 0;
+    }
+
+    .gameBoard .score#team1 {
+      left: 10px;
+      top: 0;
+      bottom: 0;
+    }
+
+    .gameBoard .score#team2 {
+      right: 10px;
+      top: 0;
+      bottom: 0;
+    }
+
+    .gameBoard .questionHolder {
+      width: 94%;
+      margin: auto;
+      height: 100px;
+      line-height: 100px;
+      font-size: 30px;
+      color: #003c7b;
+      text-shadow: none;
+      border: 1px solid black;
+      background: #deeeff;
+      padding: 10px;
+      margin-bottom: 15px;
+      box-shadow: inset 0 1px 24px 1px rgba(0, 0, 0, 0.48);
+    }
+
+    .gameBoard .questionHolder span {
+      display: inline-block;
+      vertical-align: middle;
+      line-height: normal;
+    }
+
+    .gameBoard .colHolder {
+      background: black;
+      padding: 4px;
+    }
+
+    .gameBoard .colHolder>div {
+      display: block;
+      width: 100%;
+      box-shadow: 0 1px 24px 1px rgba(0, 0, 0, 0.48);
+    }
+
+    .gameBoard .cardHolder {
+      display: inline-block;
+      position: relative;
+      vertical-align: top;
+      height: 50px;
+      margin: 4px;
+      width: 95%;
+      background: black;
+      border: 4px solid white;
+    }
+
+    .gameBoard .cardHolder.empty {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .gameBoard .cardHolder:not(.empty) {
+      cursor: pointer;
+    }
+
+    .gameBoard .cardHolder b {
+      position: absolute;
+      right: 0;
+      width: 45px;
+      text-align: center;
+      border-left: 2px solid #003c7b;
+    }
+
+    .gameBoard .cardHolder span {
+      margin: 10px;
+    }
+
+    .gameBoard .cardHolder>div {
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      width: 100%;
+      height: 100%;
+      border: 2px solid #003c7b;
+      line-height: 50px;
+      transform-origin: center center;
+    }
+
+    .gameBoard .cardHolder .back {
+      font-size: 25px;
+      text-align: left;
+    }
+
+    .gameBoard .cardHolder .back span {
+      display: inline-block;
+      vertical-align: middle;
+      line-height: normal;
+    }
+
+    .gameBoard .cardHolder .front {
+      text-align: center;
+    }
+
+    .gameBoard .cardHolder .front span {
+      font-size: 30px;
+      position: absolute;
+      border-radius: 50%;
+      line-height: 35px;
+      height: 35px;
+      width: 45px;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      margin: auto;
+      border: 2px solid #003c7b;
+    }
+
+    .gameBoard .btnHolder {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 45px;
+    }
+
+    .gameBoard .btnHolder .button {
+      cursor: pointer;
+      display: inline-block;
+      font-size: 20px;
+      margin: 10px;
+      height: 50px;
+      line-height: 50px;
+      width: 175px;
+      border: 3px solid white;
+      box-shadow: 0 1px 24px 1px rgba(0, 0, 0, 0.48);
+    }
+
+    .gameBoard .btnHolder .button#awardTeam1 {
+      border-radius: 50px 0 0 50px;
+    }
+
+    .gameBoard .btnHolder .button#awardTeam2 {
+      border-radius: 0 50px 50px 0;
+    }
+
+    /* small input area for typed answers */
+    .answerPanel {
+      margin-top: 20px;
+      text-align: center;
+      color: #012a4a;
+    }
+
+    .answerPanel input[type="text"] {
+      font-size: 18px;
+      padding: 8px 12px;
+      width: 50%;
+      border-radius: 6px;
+    }
+
+    .statusMsg {
+      margin-top: 10px;
+      font-size: 18px;
+      color: #fff;
+      text-shadow: none;
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    @media (min-width: 780px) {
+      .gameBoard .colHolder>div {
+        display: inline-block;
+        width: 50%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="back-nav"><a href="index.html" class="back-nav__link"><svg viewBox="0 0 24 24">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg> Home</a></nav>
+  <script>
+    // Family-feud-like rules with careful card logic
+    var app = {
+      currentQ: 0,
+      currentTeam: 1,           // team currently answering
+      originalTeam: null,       // team that had the board before strikes (used for awarding after failed steal)
+      strikes: 0,
+      stealMode: false,         // true while awaiting steal attempt
+      answeredCount: 0,
+      allData: {
+        "Name a color.": [["Red", 25], ["Blue", 20], ["Yellow", 15], ["Green", 10], ["Pink", 8], ["Purple", 5], ["Orange", 3]],
+        "Name an animal you like.": [["Dog", 30], ["Cat", 20], ["Fish", 15], ["Bird", 10], ["Rabbit", 5], ["Hamster", 3]],
+        "Name a fruit.": [["Apple", 25], ["Banana", 20], ["Orange", 15], ["Grape", 10], ["Strawberry", 5], ["Mango", 3]],
+        "Name a part of the body.": [["Hand", 20], ["Head", 18], ["Leg", 15], ["Arm", 12], ["Eye", 10], ["Foot", 8], ["Ear", 5]],
+        "Name something in a classroom.": [["Desk", 25], ["Book", 20], ["Pencil", 15], ["Chair", 10], ["Board", 8], ["Eraser", 5], ["Bag", 3]],
+        "Name something you wear.": [["Shirt", 25], ["Pants", 20], ["Shoes", 15], ["Hat", 10], ["Jacket", 8], ["Socks", 5]],
+        "Name a food you eat for breakfast.": [["Eggs", 25], ["Bread", 20], ["Milk", 15], ["Cereal", 10], ["Pancakes", 8], ["Juice", 5]],
+        "Name a drink.": [["Water", 25], ["Milk", 20], ["Juice", 15], ["Soda", 10], ["Tea", 8], ["Hot Chocolate", 5]],
+        "Name something that flies.": [["Bird", 25], ["Plane", 20], ["Butterfly", 15], ["Bee", 10], ["Kite", 8], ["Bat", 5]],
+        "Name a shape.": [["Circle", 25], ["Square", 20], ["Triangle", 15], ["Rectangle", 10], ["Star", 8], ["Heart", 5]],
+        "Name something you can find in the kitchen.": [["Spoon", 25], ["Plate", 20], ["Cup", 15], ["Fork", 10], ["Pan", 8], ["Fridge", 5]],
+        "Name a sport.": [["Soccer", 25], ["Basketball", 20], ["Baseball", 15], ["Tennis", 10], ["Swimming", 8], ["Running", 5]],
+        "Name something you can ride.": [["Bike", 25], ["Car", 20], ["Bus", 15], ["Train", 10], ["Horse", 8], ["Scooter", 5]],
+        "Name something you see in the sky.": [["Sun", 25], ["Cloud", 20], ["Moon", 15], ["Star", 10], ["Bird", 8], ["Plane", 5]],
+        "Name a pet people have.": [["Dog", 25], ["Cat", 20], ["Fish", 15], ["Bird", 10], ["Hamster", 8], ["Rabbit", 5]],
+        "Name something you can draw with.": [["Pencil", 25], ["Crayon", 20], ["Marker", 15], ["Pen", 10], ["Paintbrush", 8]],
+        "Name a toy.": [["Ball", 25], ["Doll", 20], ["Car", 15], ["Lego", 10], ["Teddy Bear", 8], ["Puzzle", 5]],
+        "Name something that is hot.": [["Sun", 25], ["Fire", 20], ["Soup", 15], ["Tea", 10], ["Stove", 8]],
+        "Name something that is cold.": [["Ice", 25], ["Snow", 20], ["Ice Cream", 15], ["Juice", 10], ["Water", 8]],
+        "Name something you find in the bathroom.": [["Toothbrush", 25], ["Soap", 20], ["Towel", 15], ["Toilet", 10], ["Mirror", 8]],
+        "Name something you do before bed.": [["Brush teeth", 25], ["Read", 20], ["Pray", 15], ["Wash face", 10], ["Say goodnight", 8]],
+        "Name something you can hear outside.": [["Birds", 25], ["Cars", 20], ["Wind", 15], ["Dogs barking", 10], ["Rain", 8]],
+        "Name a place you visit.": [["Park", 25], ["School", 20], ["Zoo", 15], ["Beach", 10], ["Mall", 8]],
+        "Name something that moves.": [["Car", 25], ["Ball", 20], ["Person", 15], ["Dog", 10], ["Train", 8]],
+        "Name something you can read.": [["Book", 25], ["Magazine", 20], ["Newspaper", 15], ["Sign", 10], ["Story", 8]],
+        "Name something you can open.": [["Door", 25], ["Box", 20], ["Book", 15], ["Window", 10], ["Bag", 8]],
+        "Name something that gives light.": [["Sun", 25], ["Lamp", 20], ["Candle", 15], ["Torch", 10], ["Fire", 8]],
+        "Name something that grows.": [["Plant", 25], ["Tree", 20], ["Flower", 15], ["Child", 10], ["Grass", 8]],
+        "Name something that has wheels.": [["Car", 25], ["Bike", 20], ["Bus", 15], ["Train", 10], ["Scooter", 8]],
+        "Name something that is round.": [["Ball", 25], ["Sun", 20], ["Moon", 15], ["Orange", 10], ["Plate", 8]],
+        "Name something that swims.": [["Fish", 25], ["Duck", 20], ["Frog", 15], ["Turtle", 10], ["Whale", 8]],
+        "Name something you use at school.": [["Pencil", 25], ["Book", 20], ["Eraser", 15], ["Ruler", 10], ["Bag", 8]],
+        "Name a place where people work.": [["School", 25], ["Hospital", 20], ["Store", 15], ["Farm", 10], ["Office", 8]],
+        "Name a thing that can fly.": [["Bird", 25], ["Plane", 20], ["Butterfly", 15], ["Bee", 10], ["Kite", 8]],
+        "Name something you do in the morning.": [["Brush teeth", 25], ["Eat breakfast", 20], ["Get dressed", 15], ["Go to school", 10], ["Wash face", 8]],
+        "Name something that can be yellow.": [["Banana", 25], ["Sun", 20], ["Lemon", 15], ["Duck", 10], ["Corn", 8]],
+        "Name something you can write with.": [["Pencil", 25], ["Pen", 20], ["Marker", 15], ["Crayon", 10], ["Chalk", 8]],
+        "Name something you use when it rains.": [["Umbrella", 25], ["Raincoat", 20], ["Boots", 15], ["Hat", 10], ["Jacket", 8]],
+        "Name something you find on a farm.": [["Cow", 25], ["Chicken", 20], ["Pig", 15], ["Horse", 10], ["Duck", 8]],
+        "Name something that is soft.": [["Pillow", 25], ["Teddy Bear", 20], ["Blanket", 15], ["Cotton", 10], ["Sponge", 8]],
+        "Name something you can eat that is sweet.": [["Candy", 25], ["Cake", 20], ["Ice Cream", 15], ["Cookie", 10], ["Chocolate", 8]],
+        "Name something you see in the park.": [["Tree", 25], ["Slide", 20], ["Swing", 15], ["Dog", 10], ["Bench", 8]],
+        "Name something you can count.": [["Fingers", 25], ["Apples", 20], ["Stars", 15], ["Books", 10], ["Coins", 8]],
+        "Name something that makes noise.": [["Drum", 25], ["Bell", 20], ["Car", 15], ["Dog", 10], ["Phone", 8]],
+        "Name something you can touch.": [["Table", 25], ["Chair", 20], ["Book", 15], ["Wall", 10], ["Toy", 8]],
+        "Name something that uses electricity.": [["TV", 25], ["Light", 20], ["Fan", 15], ["Computer", 10], ["Phone", 8]],
+        "Name something you can do with your hands.": [["Clap", 25], ["Draw", 20], ["Write", 15], ["Wave", 10], ["Eat", 8]],
+        "Name something you can find in your bedroom.": [["Bed", 25], ["Pillow", 20], ["Blanket", 15], ["Lamp", 10], ["Toy", 8]],
+        "Name something you use to clean.": [["Broom", 25], ["Soap", 20], ["Towel", 15], ["Vacuum", 10], ["Mop", 8]]
+      },
+
+      sounds: {
+        correct: "https://cdn.freesound.org/previews/131/131662_2398403-lq.mp3",
+        wrong: "https://cdn.freesound.org/previews/558/558121_11464571-lq.mp3",
+        allFound: "https://cdn.freesound.org/previews/609/609336_2770604-lq.mp3",
+        stealSuccess: "https://cdn.freesound.org/previews/277/277031_847303-lq.mp3",
+        stealFail: "https://cdn.freesound.org/previews/483/483598_6436863-lq.mp3",
+        newQuestion: "https://cdn.freesound.org/previews/243/243020_4284968-lq.mp3"
+      },
+
+      // build the board DOM
+      board: $("<div class='gameBoard'>" +
+        "<div class='score' id='boardScore'>0</div>" +
+        "<div class='score' id='team1'>0</div>" +
+        "<div class='score' id='team2'>0</div>" +
+        "<div class='questionHolder'><span class='question'></span></div>" +
+        "<div class='colHolder'><div class='col1'></div><div class='col2'></div></div>" +
+        "<div class='answerPanel'>" +
+        "<input id='playerAnswer' type='text' placeholder='Type answer and press Enter' />" +
+        "<div class='statusMsg'></div>" +
+        "</div>" +
+        "<div class='btnHolder'>" +
+        "<div id='awardTeam1' data-team='1' class='button'>Award Team 1</div>" +
+        "<div id='newQuestion' class='button'>New Question</div>" +
+        "<div id='awardTeam2' data-team='2' class='button'>Award Team 2</div>" +
+        "</div>" +
+        "</div>"),
+
+      shuffle: function (array) {
+        var c = array.length, t, r;
+        while (c) { r = Math.floor(Math.random() * c--); t = array[c]; array[c] = array[r]; array[r] = t; }
+        return array;
+      },
+
+      jsonLoaded: function () {
+        this.questions = Object.keys(this.allData);
+        this.shuffle(this.questions);
+        $('body').append(this.board);
+        this.makeQuestion(this.currentQ);
+        this.board.find('.button').css('visibility', 'visible');
+        this.board.find('#newQuestion').text('Next Question');
+      },
+
+      // create cards; attach data-answer & data-points to each card container.
+      makeQuestion: function (qIndex) {
+        var qText = this.questions[qIndex];
+        var qAnswers = this.allData[qText]; // array of [text, points]
+        var qCount = qAnswers.length;
+        qCount = (qCount < 8) ? 8 : qCount;
+        qCount = (qCount % 2 !== 0) ? qCount + 1 : qCount;
+
+        this.strikes = 0;
+        this.stealMode = false;
+        this.answeredCount = 0;
+        this.originalTeam = null;
+
+        var boardScore = this.board.find('#boardScore');
+        var question = this.board.find('.question');
+        var col1 = this.board.find('.col1'), col2 = this.board.find('.col2');
+        var status = this.board.find('.statusMsg');
+
+        boardScore.html('0');
+        question.text(qText);
+        status.text('');
+
+        col1.empty(); col2.empty();
+
+        // coin toss decides which team goes first
+        this.currentTeam = (Math.random() < 0.5) ? 1 : 2;
+        status.text("Coin toss: Team " + this.currentTeam + " answers first.");
+
+        // create the card elements
+        for (var i = 0; i < qCount; i++) {
+          var cardHolder;
+          if (qAnswers[i]) {
+            // card has data
+            var answerText = qAnswers[i][0];
+            var points = qAnswers[i][1];
+            cardHolder = $(
+              "<div class='cardHolder'>" +
+              "<div class='card' data-answer='" + escapeHtml(answerText) + "' data-points='" + points + "'>" +
+              "<div class='front'><span class='DBG'>" + (i + 1) + "</span></div>" +
+              "<div class='back DBG'><span class='ansTxt'>" + escapeHtml(answerText) + "</span><b class='LBG'>" + points + "</b></div>" +
+              "</div>" +
+              "</div>");
+          } else {
+            cardHolder = $("<div class='cardHolder empty'><div></div></div>");
+          }
+          (i < qCount / 2 ? col1 : col2).append(cardHolder);
+        }
+
+        // setup transforms and state
+        var cardHolders = this.board.find('.cardHolder');
+        var cards = this.board.find('.card');
+        var backs = this.board.find('.back');
+        var cardSides = this.board.find('.card>div');
+
+        // ensure backfaces and rotation are set so flipping works predictably
+        TweenLite.set(cardHolders, { perspective: 800 });
+        TweenLite.set(cards, { transformStyle: "preserve-3d", rotationX: 0 });
+        TweenLite.set(backs, { rotationX: 180 });
+        TweenLite.set(cardSides, { backfaceVisibility: "hidden" });
+
+        // store flipped state explicitly and disable click for empty cards
+        cards.data("flipped", false);
+        cardHolders.filter('.empty').off('click').css('pointer-events', 'none');
+        // allow click flipping for operator convenience (only if not flipped)
+        var self = this;
+        cardHolders.not('.empty').off('click').on('click', function () {
+          var card = $(this).find('.card');
+          if (card.data('flipped')) return; // don't flip back via click once revealed (prevent double counting)
+          self.flipCardElement(card);
+        });
+
+        // autofocus input
+        this.board.find('#playerAnswer').val('').focus();
+      },
+
+      // main typed-answer handler
+      playSound: function (name) {
+        if (!this.sounds[name]) return;
+        var audio = new Audio(this.sounds[name]);
+        audio.play();
+      },
+
+      handleTypedAnswer: function (raw) {
+        var answer = raw.trim();
+        if (!answer) return;
+        var normalized = answer.toLowerCase();
+
+        var cards = this.board.find('.card').filter(function () { return !!$(this).attr('data-answer'); });
+        var match = null;
+        cards.each(function () {
+          var a = $(this).attr('data-answer');
+          if (a && a.toLowerCase() === normalized && !$(this).data('flipped')) {
+            match = $(this);
+            return false;
+          }
+        });
+
+        var status = this.board.find('.statusMsg');
+
+        if (this.stealMode) {
+          if (match) {
+            this.flipCardElement(match);
+            this.updateBoardScore();
+            status.text("Correct! Team " + this.currentTeam + " steals the board!");
+            this.playSound('stealSuccess');
+            var bs = this.getBoardScoreValue();
+            this.awardToTeamImmediate(this.currentTeam, bs);
+            this.resetAfterAward();
+          } else {
+            status.text("Wrong steal. Team " + this.originalTeam + " wins the board.");
+            this.playSound('stealFail');
+            var bs = this.getBoardScoreValue();
+            this.awardToTeamImmediate(this.originalTeam, bs);
+            this.resetAfterAward();
+          }
+          return;
+        }
+
+        if (match) {
+          this.flipCardElement(match);
+          this.updateBoardScore();
+          status.text("Good! \"" + match.attr('data-answer') + "\" revealed.");
+          this.playSound('correct');
+
+          this.answeredCount = this.countFlippedCards();
+          var totalAnswers = this.allData[this.questions[this.currentQ]].length;
+          if (this.answeredCount >= totalAnswers) {
+            status.text("All answers found. Team " + this.currentTeam + " wins the board!");
+            this.playSound('allFound');
+            var bs = this.getBoardScoreValue();
+            this.awardToTeamImmediate(this.currentTeam, bs);
+            this.resetAfterAward();
+          }
+        } else {
+          this.strikes++;
+          status.text("Wrong! Strike " + this.strikes + " (Team " + this.currentTeam + ")");
+          this.playSound('wrong');
+          if (this.strikes >= 3) {
+            this.originalTeam = this.currentTeam;
+            this.currentTeam = (this.currentTeam === 1) ? 2 : 1;
+            this.stealMode = true;
+            this.board.find('#playerAnswer').val('').focus();
+            status.text("3 strikes! Team " + this.originalTeam + " out. Team " + this.currentTeam + " gets ONE steal attempt.");
+          }
+        }
+      },
+
+      changeQuestion: function () {
+        this.currentQ++;
+        if (this.currentQ >= this.questions.length) {
+          alert("Game Over! No more questions.");
+          return;
+        }
+        this.playSound('newQuestion');
+        this.makeQuestion(this.currentQ);
+      },
+
+      // flip visual card element and mark data('flipped') true
+      flipCardElement: function ($card) {
+        if (!$card || $card.length === 0) return;
+        if ($card.data('flipped')) return;
+        TweenLite.to($card, 0.8, { rotationX: -180, ease: Back.easeOut });
+        $card.data('flipped', true);
+      },
+
+      // compute board score from flipped cards (returns number)
+      getBoardScoreValue: function () {
+        var sum = 0;
+        this.board.find('.card').each(function () {
+          var $c = $(this);
+          if ($c.data('flipped')) {
+            var p = parseInt($c.attr('data-points') || 0, 10);
+            sum += isNaN(p) ? 0 : p;
+          }
+        });
+        return sum;
+      },
+
+      // update the boardScore display with animation
+      updateBoardScore: function () {
+        var boardScore = this.board.find('#boardScore');
+        var newVal = this.getBoardScoreValue();
+        var current = { val: parseInt(boardScore.text() || '0', 10) };
+        TweenMax.to(current, 0.6, {
+          val: newVal,
+          onUpdate: function () {
+            boardScore.text(Math.round(this.target.val));
+          }
+        });
+      },
+
+      // count flipped cards
+      countFlippedCards: function () {
+        var c = 0;
+        this.board.find('.card').each(function () {
+          if ($(this).data('flipped')) c++;
+        });
+        return c;
+      },
+
+      // award board score to team (invoked by buttons or automatic), but does not auto-reset cards here
+      awardToTeamImmediate: function (teamNumber, points) {
+        if (!teamNumber) return;
+        var teamEl = this.board.find('#team' + teamNumber);
+        var current = { val: parseInt(teamEl.text() || '0', 10) };
+        var newTotal = current.val + (points || 0);
+        TweenMax.to(current, 0.8, {
+          val: newTotal,
+          onUpdate: function () {
+            teamEl.text(Math.round(this.target.val));
+          }
+        });
+        // clear boardScore display
+        var boardScore = this.board.find('#boardScore');
+        TweenMax.to({ val: parseInt(boardScore.text() || '0', 10) }, 0.6, {
+          val: 0,
+          onUpdate: function () { boardScore.text(Math.round(this.target.val)); }
+        });
+      },
+
+      // button handlers call this to award whatever is in board to one team and reset board
+      awardPointsButton: function (evt) {
+        var team = parseInt($(evt.currentTarget).attr('data-team'), 10);
+
+        // get board points before resetting flipped state
+        var points = this.getBoardScoreValue();
+
+        // reset board immediately to avoid double-counting
+        this.board.find('.card').each(function () {
+          $(this).data('flipped', false);
+          TweenLite.set($(this), { rotationX: 0 });
+        });
+        this.board.find('#boardScore').text('0');
+
+        // award to team
+        this.awardToTeamImmediate(team, points);
+
+        // reset internal flags
+        this.strikes = 0;
+        this.stealMode = false;
+        this.originalTeam = null;
+        this.answeredCount = 0;
+
+        // focus input
+        this.board.find('#playerAnswer').val('').focus();
+      },
+
+      // reset the board after a round ends (unflip all cards visually and prepare for next question)
+      resetAfterAward: function () {
+        var self = this;
+        // leave the revealed cards visible for a moment, then reset them visually for next question
+        setTimeout(function () {
+          // unflip all cards instantly and clear data
+          self.board.find('.card').each(function () {
+            var $c = $(this);
+            TweenLite.set($c, { rotationX: 0 });
+            $c.data('flipped', false);
+          });
+          // clear board score visually
+          self.board.find('#boardScore').text('0');
+          // reset flags
+          self.strikes = 0;
+          self.stealMode = false;
+          self.originalTeam = null;
+          self.answeredCount = 0;
+          // keep currentTeam as the team who was awarded (so they don't automatically start next)
+          // focus input
+          self.board.find('#playerAnswer').val('').focus();
+        }, 700);
+      },
+
+      init: function () {
+        var self = this;
+        this.jsonLoaded();
+
+        // enter key for typed answers
+        this.board.on('keypress', '#playerAnswer', function (e) {
+          if (e.which === 13) {
+            var text = $(this).val();
+            self.handleTypedAnswer(text);
+            $(this).val('');
+          }
+        });
+
+        // new question
+        this.board.find('#newQuestion').on('click', function () { self.changeQuestion(); });
+
+        // award buttons
+        this.board.find('#awardTeam1').on('click', function (e) { self.awardPointsButton(e); });
+        this.board.find('#awardTeam2').on('click', function (e) { self.awardPointsButton(e); });
+        this.board.find('#showAll').on('click', function () { self.showAllAnswers(); });
+
+      }
+    };
+
+    // small helper to avoid injecting raw HTML (keeps quotes safe)
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+      });
+    }
+
+    // start
+    $(function () { app.init(); });
+  </script>
+</body>
+
+</html>

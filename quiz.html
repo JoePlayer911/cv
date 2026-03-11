@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mandarin Quiz</title>
+  <link rel="stylesheet" href="projects.css" />
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="shared.js" defer></script>
+  <style>
+    /* ===== Base / original styles ===== */
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .option {
+      padding: 10px;
+      margin: 5px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .option.correct {
+      background-color: #c8f7c5;
+      border-color: #27ae60;
+    }
+
+    .option.incorrect {
+      background-color: #f7c5c5;
+      border-color: #c0392b;
+    }
+
+    .bubble-container {
+      margin-top: 10px;
+    }
+
+    .bubble {
+      display: inline-block;
+      margin: 4px;
+      padding: 8px 12px;
+      border-radius: 20px;
+      background: #1e1e1e;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      user-select: none;
+    }
+
+    .bubble.back-bubble {
+      background: #7d0e04;
+      border-color: #c0392b;
+      font-weight: bold;
+    }
+
+    .vocab-card {
+      margin-top: 15px;
+      padding: 15px;
+      border: 2px solid #333;
+      border-radius: 12px;
+      background: #f9f9f9;
+      text-align: center;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .vocab-card h2 {
+      font-size: 2rem;
+      margin: 0;
+    }
+
+    .vocab-card p {
+      margin: 5px 0;
+      font-size: 1.2rem;
+    }
+
+    #next-btn {
+      margin-top: 15px;
+      display: block;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: #3498db;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    /* ===== Enhancements: mobile-first responsiveness & accessibility ===== */
+
+    /* Predictable sizing */
+    html {
+      box-sizing: border-box;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: inherit;
+    }
+
+    /* Constrain line length, safe-area padding for notches */
+    body {
+      margin: 0;
+      max-width: 900px;
+      padding: clamp(12px, 4vw, 24px);
+      margin-inline: auto;
+      line-height: 1.45;
+    }
+
+    @supports (padding: max(0px)) {
+      body {
+        padding-left: max(12px, 4vw, env(safe-area-inset-left));
+        padding-right: max(12px, 4vw, env(safe-area-inset-right));
+      }
+    }
+
+    /* Fluid type so headings don’t overflow */
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(1.2rem, 5vw, 2rem);
+    }
+
+    /* Score stays readable */
+    #score {
+      margin-bottom: 12px;
+      font-size: clamp(0.95rem, 3.6vw, 1.05rem);
+    }
+
+    /* Save/Load + Level Select wrap nicely on small screens */
+    #save-load-container,
+    #level-select-container {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: 10px 0 14px;
+    }
+
+    #save-load-container label,
+    #level-select-container label {
+      flex: 0 0 auto;
+      font-size: 0.95rem;
+    }
+
+    #save-load-container input,
+    #level-select-container select {
+      flex: 1 1 180px;
+      min-width: 0;
+      /* Prevents overflow on tiny screens */
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #bbb;
+      font-size: 1rem;
+    }
+
+    /* Buttons are finger-friendly */
+    #save-load-container button {
+      flex: 0 0 auto;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: none;
+      background: #2c3e50;
+      color: #fff;
+      cursor: pointer;
+      min-height: 44px;
+    }
+
+    /* Quiz uses a single-column grid by default */
+    #quiz-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    /* Headers and special blocks span full width in the grid */
+    #quiz-container>h2,
+    #quiz-container>#answer-box,
+    #quiz-container>.bubble-container,
+    #quiz-container>.vocab-card {
+      grid-column: 1 / -1;
+    }
+
+    /* Long option text wraps, comfortable tap target */
+    .option {
+      width: 100%;
+      word-break: break-word;
+      line-height: 1.35;
+      min-height: 44px;
+    }
+
+    /* Pinyin bubble layout */
+    .bubble-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .bubble {
+      min-height: 40px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      user-select: none;
+      word-break: keep-all;
+      font-size: clamp(0.95rem, 3.8vw, 1rem);
+    }
+
+    .bubble.back-bubble {
+      order: 999;
+      /* Put “Back” at the end */
+    }
+
+    /* Visible answer area; prevent overflow */
+    #answer-box {
+      min-height: 44px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      border: 1px dashed #aaa;
+      border-radius: 10px;
+      background: #fff;
+      word-break: break-all;
+    }
+
+    /* Vocab card scales well on small screens */
+    .vocab-card {
+      text-align: left;
+    }
+
+    .vocab-card h2 {
+      font-size: clamp(1.35rem, 6vw, 2rem);
+      word-break: break-word;
+    }
+
+    .vocab-card p {
+      font-size: clamp(1rem, 4.2vw, 1.15rem);
+    }
+
+    /* Next button easy to hit and centered */
+    #next-btn {
+      width: 100%;
+      max-width: 420px;
+      margin: 12px auto 0;
+      min-height: 44px;
+    }
+
+    /* Focus styles for keyboard/switch users */
+    .option:focus-visible,
+    .bubble:focus-visible,
+    #save-load-container button:focus-visible,
+    #next-btn:focus-visible,
+    #save-load-container input:focus-visible,
+    #level-select-container select:focus-visible {
+      outline: 3px solid #3498db;
+      outline-offset: 2px;
+      border-radius: 12px;
+    }
+
+    /* === Phones (≤480px): stack labels, keep buttons side-by-side === */
+    @media (max-width: 480px) {
+
+      #save-load-container label,
+      #level-select-container label {
+        flex-basis: 100%;
+      }
+
+      #save-load-container button {
+        width: calc(50% - 4px);
+      }
+    }
+
+    /* === Tablets and up (≥640px): two-column options === */
+    @media (min-width: 640px) {
+
+      /* Two columns in the quiz grid */
+      #quiz-container {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      /* Ensure the question header and special blocks span both columns */
+      #quiz-container>h2,
+      #quiz-container>#answer-box,
+      #quiz-container>.bubble-container,
+      #quiz-container>.vocab-card {
+        grid-column: 1 / -1;
+      }
+
+      /* Options can flow into the two columns naturally */
+      .option {
+        width: auto;
+        /* allow grid to size them */
+        margin: 0;
+        /* grid gap handles spacing */
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="back-nav"><a href="index.html" class="back-nav__link"><svg viewBox="0 0 24 24">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg> Home</a></nav>
+  <h1>Mandarin Vocabulary Quiz</h1>
+  <div id="score">Streak: <span id="streak">0</span></div>
+
+  <div id="save-load-container">
+    <label for="save-code">Save Code:</label>
+    <input type="text" id="save-code" placeholder="Enter or create code" />
+    <button onclick="saveProgress()">Save Progress</button>
+    <button onclick="loadProgress()">Load Progress</button>
+  </div>
+
+  <div id="level-select-container">
+    <label for="level-select">Select Level:</label>
+    <select id="level-select" onchange="fetchVocabulary()">
+      <option value="1wOdT3XP0XFnD4OHEjOwvMhk4pKqRAU3TZ9sHzKuJFkU">HSK 1</option>
+      <option value="1F4-cr9gya_fc8N-MlcwngH9oAwXLVbq-Cqcljww522k">HSK 2</option>
+      <option value="18qSMMc3F8NXKWOEFAflddZYYP-swUkqgziX0RRtioYk">HSK 3</option>
+      <option value="1xSrE6yfKhaOhhKn1uoy8M0oi1rdvsqlLlLLLccuiTTQ">HSK 4</option>
+      <option value="1tL5c0P0iNlx-lBSuI3P_4Nwr5R39pD505G4P6ekMR58">HSK 5</option>
+      <option value="1w_nu8tAJ6Gqts7gHyeL79e6LYPfQaVfUkMkY2MbeOdI">Jojo's Level</option>
+    </select>
+  </div>
+
+  <div id="quiz-container"></div>
+  <button id="next-btn" style="display:none;">Next Question</button>
+
+  <script>
+    const apiKey = atob('QUl6YVN5QkE3S0M2VXZ3enY1SHBObklHQWV0YjdYUndwa1paTURN');
+    const range = 'vocabs!A2:D';
+    let vocabulary = [];
+    let currentQuestion = null;
+    let streak = 0;
+    let answerStack = [];
+
+    async function fetchVocabulary() {
+      const spreadsheetId = document.getElementById('level-select').value;
+      try {
+        const response = await axios.get(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?key=${apiKey}`);
+        vocabulary = response.data.values.map(row => ({
+          vocab: row[0],
+          pinyin: row[1],
+          meaning: row[2],
+          pass: parseInt(row[3]) || 0
+        }));
+        updateStreakFromVocabulary();
+        loadQuestion();
+      } catch (error) {
+        console.error('Error fetching vocabulary:', error);
+      }
+    }
+
+    function updateStreakFromVocabulary() {
+      streak = vocabulary.reduce((acc, v) => acc + (v.pass > 0 ? 1 : 0), 0);
+      document.getElementById('streak').textContent = streak;
+    }
+
+    function getRandomVocab() {
+      return vocabulary[Math.floor(Math.random() * vocabulary.length)];
+    }
+
+    function getRandomQuestionType() {
+      const types = ['match', 'multiple-choice', 'pinyin-bubble'];
+      return types[Math.floor(Math.random() * types.length)];
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    async function updatePass(vocab, isCorrect) {
+      const index = vocabulary.findIndex(item => item.vocab === vocab.vocab);
+      if (index === -1) return;
+      if (isCorrect) {
+        vocabulary[index].pass += 1;
+        streak += 1;
+      } else {
+        vocabulary[index].pass = 0;
+        streak = 0;
+      }
+      document.getElementById('streak').textContent = streak;
+    }
+
+    function loadQuestion() {
+      currentQuestion = getRandomVocab();
+      const questionType = getRandomQuestionType();
+      const container = document.getElementById('quiz-container');
+      container.innerHTML = '';
+      document.getElementById('next-btn').style.display = 'none';
+      answerStack = [];
+
+      if (questionType === 'match') {
+        container.innerHTML = `<h2>Match: ${currentQuestion.vocab}</h2>`;
+        const options = shuffle([
+          currentQuestion.pinyin,
+          ...shuffle(vocabulary.filter(v => v.vocab !== currentQuestion.vocab).map(v => v.pinyin)).slice(0, 3)
+        ]);
+        options.forEach(opt => {
+          const div = document.createElement('div');
+          div.className = 'option';
+          div.textContent = opt;
+          div.onclick = () => checkAnswer(opt === currentQuestion.pinyin, div, currentQuestion);
+          container.appendChild(div);
+        });
+      } else if (questionType === 'multiple-choice') {
+        container.innerHTML = `<h2>What is the meaning of "${currentQuestion.vocab}"?</h2>`;
+        const options = shuffle([
+          currentQuestion.meaning,
+          ...shuffle(vocabulary.filter(v => v.vocab !== currentQuestion.vocab).map(v => v.meaning)).slice(0, 3)
+        ]);
+        options.forEach(opt => {
+          const div = document.createElement('div');
+          div.className = 'option';
+          div.textContent = opt;
+          div.onclick = () => checkAnswer(opt === currentQuestion.meaning, div, currentQuestion);
+          container.appendChild(div);
+        });
+      } else if (questionType === 'pinyin-bubble') {
+        container.innerHTML = `<h2>Arrange the pinyin for "${currentQuestion.vocab}"</h2>
+                               <div id="answer-box"></div>
+                               <div class="bubble-container" id="bubble-container"></div>`;
+        let pinyinChars = currentQuestion.pinyin.split('');
+        pinyinChars = shuffle(pinyinChars);
+
+        const bubbleContainer = document.getElementById('bubble-container');
+        pinyinChars.forEach((char, idx) => {
+          const bubble = document.createElement('div');
+          bubble.className = 'bubble';
+          bubble.textContent = char;
+          bubble.dataset.char = char;
+          bubble.dataset.index = idx;
+          bubble.onclick = () => selectBubble(bubble);
+          bubbleContainer.appendChild(bubble);
+        });
+
+        // Add permanent Back bubble
+        const backBubble = document.createElement('div');
+        backBubble.className = 'bubble back-bubble';
+        backBubble.textContent = '← Back';
+        backBubble.onclick = bubbleBackspace;
+        bubbleContainer.appendChild(backBubble);
+      }
+    }
+
+    function selectBubble(bubble) {
+      const char = bubble.dataset.char;
+      answerStack.push({ char: char, element: bubble });
+      document.getElementById('answer-box').textContent += char;
+      bubble.style.display = 'none';
+
+      if (answerStack.length === currentQuestion.pinyin.length) {
+        const userAnswer = answerStack.map(item => item.char).join('');
+        const isCorrect = userAnswer === currentQuestion.pinyin;
+        updatePass(currentQuestion, isCorrect);
+        showVocabCard(currentQuestion, isCorrect);
+      }
+    }
+
+    function bubbleBackspace() {
+      if (answerStack.length === 0) return;
+      const last = answerStack.pop();
+      document.getElementById('answer-box').textContent = answerStack.map(item => item.char).join('');
+      last.element.style.display = 'inline-block';
+    }
+
+    function checkAnswer(isCorrect, element, vocab) {
+      element.classList.add(isCorrect ? 'correct' : 'incorrect');
+      updatePass(vocab, isCorrect);
+      document.querySelectorAll('.option').forEach(opt => opt.onclick = null);
+      showVocabCard(vocab, isCorrect);
+    }
+
+    function showVocabCard(vocabObj, isCorrect) {
+      const container = document.getElementById('quiz-container');
+      const card = document.createElement('div');
+      card.className = 'vocab-card';
+      card.innerHTML = `
+        <p style="font-weight:bold; color:${isCorrect ? 'green' : 'red'};">
+          ${isCorrect ? '✅ Correct!' : '❌ Incorrect!'}
+        </p>
+        <h2>${vocabObj.vocab}</h2>
+        <p><strong>Pinyin:</strong> ${vocabObj.pinyin}</p>
+        <p><strong>Meaning:</strong> ${vocabObj.meaning}</p>
+      `;
+      container.appendChild(card);
+      document.getElementById('next-btn').style.display = 'block';
+    }
+
+    function saveProgress() {
+      const saveCode = document.getElementById('save-code').value.trim();
+      if (!saveCode) return alert('Please enter a save code.');
+      const progressData = vocabulary.map(v => ({ vocab: v.vocab, pass: v.pass }));
+      axios.post('/save', { save_code: saveCode, progress: progressData })
+        .then(() => alert('Progress saved successfully!'))
+        .catch(err => alert('Failed to save progress.'));
+    }
+
+    function loadProgress() {
+      const saveCode = document.getElementById('save-code').value.trim();
+      if (!saveCode) return alert('Please enter a save code.');
+      axios.get(`/load/${saveCode}`)
+        .then(response => {
+          const loaded = response.data.progress;
+          if (!loaded) throw new Error('No progress data found');
+          loaded.forEach(savedVocab => {
+            const vocabItem = vocabulary.find(v => v.vocab === savedVocab.vocab);
+            if (vocabItem) vocabItem.pass = savedVocab.pass;
+          });
+          updateStreakFromVocabulary();
+          alert('Progress loaded successfully!');
+        })
+        .catch(err => alert('Failed to load progress.'));
+    }
+
+    document.getElementById('next-btn').onclick = loadQuestion;
+
+    fetchVocabulary();
+  </script>
+</body>
+
+</html>

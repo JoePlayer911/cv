@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jonathan Ie's Portfolio Hub</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+
+    /* Reset and base */
+    * {
+      box-sizing: border-box;
+    }
+    html {
+      scroll-behavior: smooth;
+    }
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #0a2342, #12355b, #164d79);
+      color: #f0f0f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 20px 60px;
+    }
+
+    /* NAVIGATION */
+    nav {
+      position: sticky;
+      top: 0;
+      width: 100%;
+      max-width: 1000px;
+      background: rgba(10, 35, 66, 0.85);
+      backdrop-filter: saturate(180%) blur(20px);
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      padding: 15px 0;
+      z-index: 1000;
+      user-select: none;
+
+      /* Add fade on sides */
+      -webkit-mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+      mask-image: linear-gradient(to right, transparent 0%, black 15%, black 85%, transparent 100%);
+    }
+
+    nav a {
+      color: #f0f0f0;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: background-color 0.3s ease;
+    }
+
+    nav a:hover,
+    nav a.active {
+      background-color: #164d79;
+      box-shadow: 0 0 8px #2c86f7aa;
+    }
+
+    /* HERO */
+    header.hero {
+      padding-top: 0; /* Remove or reduce top padding */
+      text-align: center;
+      padding-bottom: 60px;
+      max-width: 1000px;
+      user-select: none;
+    }
+
+    header.hero h1 {
+      font-size: 3rem;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px rgba(0,0,0,0.7);
+    }
+    header.hero p {
+      font-size: 1.3rem;
+      font-weight: 300;
+      margin-bottom: 25px;
+      opacity: 0.8;
+    }
+    header.hero button {
+      padding: 14px 30px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #0a2342;
+      background-color: #2c86f7;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 5px 15px #2c86f7bb;
+      transition: background-color 0.3s ease;
+    }
+    header.hero button:hover {
+      background-color: #1c5cd1;
+      box-shadow: 0 7px 22px #1c5cd199;
+    }
+
+    /* SECTIONS */
+    section {
+      max-width: 1000px;
+      width: 100%;
+      margin-bottom: 60px;
+      padding: 0 10px;
+    }
+    section h2 {
+      font-size: 2.2rem;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #2c86f7;
+      display: inline-block;
+      padding-bottom: 6px;
+      user-select: none;
+    }
+
+    /* ABOUT */
+    #about p {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      opacity: 0.9;
+      max-width: 700px;
+      margin: 0 auto;
+      user-select: text;
+    }
+
+    /* SKILLS */
+    #skills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    .skill-bar {
+      background: rgba(255,255,255,0.15);
+      border-radius: 15px;
+      overflow: hidden;
+      width: 300px;
+      height: 24px;
+      box-shadow: inset 0 1px 3px #00000055;
+      user-select: none;
+    }
+    .skill-bar span {
+      display: block;
+      height: 100%;
+      background-color: #2c86f7;
+      width: 0;
+      color: white;
+      font-weight: 600;
+      text-align: right;
+      padding-right: 10px;
+      line-height: 24px;
+      transition: width 1.5s ease-in-out;
+      border-radius: 15px 0 0 15px;
+    }
+
+    /* PROJECTS */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 30px;
+      width: 100%;
+    }
+
+    .project-card {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      text-decoration: none;
+      color: #f0f0f0;
+      user-select: none;
+    }
+    .project-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+    }
+    .project-image {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      transition: filter 0.3s ease;
+    }
+    .project-card:hover .project-image {
+      filter: brightness(0.75);
+    }
+    .project-info {
+      padding: 20px;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .project-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .project-desc {
+      font-weight: 300;
+      font-size: 0.95rem;
+      opacity: 0.85;
+      flex-grow: 1;
+    }
+
+    .profile-image-container {
+      margin-top: 40px;
+      margin-bottom: 0px;
+      display: flex;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .profile-image {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid #2c86f7;
+      box-shadow: 0 0 20px #2c86f7aa;
+      transition: transform 0.3s ease;
+    }
+
+    .profile-image:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 30px #2c86f7cc;
+      cursor: pointer;
+    }
+
+    /* CONTACT */
+    footer {
+      width: 100%;
+      max-width: 1000px;
+      text-align: center;
+      border-top: 1px solid #2c86f7;
+      padding-top: 30px;
+      user-select: none;
+    }
+    footer h2 {
+      margin-bottom: 15px;
+    }
+    footer p, footer a {
+      color: #9ecbff;
+      font-weight: 500;
+      font-size: 1rem;
+      text-decoration: none;
+      margin: 0 8px;
+    }
+    footer a:hover {
+      text-decoration: underline;
+      color: #2c86f7;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      header.hero h1 {
+        font-size: 2.2rem;
+      }
+      header.hero p {
+        font-size: 1rem;
+      }
+      .skill-bar {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="#about" class="nav-link active">About</a>
+    <a href="#skills" class="nav-link">Skills</a>
+    <a href="#projects" class="nav-link">Projects</a>
+    <a href="#contact" class="nav-link">Contact</a>
+  </nav>
+
+    <div class="profile-image-container">
+      <img src="https://blogger.googleusercontent.com/img/a/AVvXsEhVThgOKLTwzOXak-YslJPsA5hUm2ZH3lNFNWf8XeIZl66VkKPD-9o0esq65G52gtTphTuYP6srRJaQYjaQq_bWAwL_ZB24T2fY9Rt4dEskkTdtdQOHj3McYLTqvCMWpft-Hp5bb521em3H_mQHKC7tQH3EWkYRW5hhsKsPvz0Kj38uU0K7dtFpE4DoOuM" alt="Jonathan Ie" class="profile-image" />
+    </div>
+
+
+  <header class="hero">
+    <h1>Jonathan Ie</h1>
+    <p>Software Developer | AI Enthusiast</p>
+    <button onclick="document.getElementById('projects').scrollIntoView({behavior:'smooth'})">
+      Explore My Work
+    </button>
+  </header>
+
+    <h2>About Me</h2>
+  <section id="about">
+    <p>
+      Hi! I'm Jonathan, a passionate software developer with a knack for creating AI-powered solutions and engaging projects. I love learning new technologies and turning ideas into reality.
+    </p>
+  </section>
+
+    <h2>Skills</h2>
+  <section id="skills">
+    <div class="skill-bar"><span data-skill-level="90">HTML / CSS - 90%</span></div>
+    <div class="skill-bar"><span data-skill-level="85">JavaScript - 85%</span></div>
+    <div class="skill-bar"><span data-skill-level="75">Python - 75%</span></div>
+    <div class="skill-bar"><span data-skill-level="70">Machine Learning - 70%</span></div>
+    <div class="skill-bar"><span data-skill-level="60">Node.js - 60%</span></div>
+  </section>
+
+  <section id="projects">
+    <h2>Projects</h2>
+    <div class="projects-grid" id="projectsGrid">
+      <!-- Project cards injected here -->
+    </div>
+  </section>
+
+  <footer id="contact">
+    <h2>Contact Me</h2>
+    <p>
+      <a href="mailto:jnthnie@gmail.com">Gmail</a> •
+      <a href="https://www.linkedin.com/in/jonathan-ie/" target="_blank" rel="noopener noreferrer">LinkedIn</a> •
+      <a href="https://github.com/JoePlayer911" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </p>
+  </footer>
+
+  <script>
+    // Your existing projects array
+    const projects = [
+      {
+        title: "Xingqiu's Novel Adventure",
+        url: "https://jokojo3star.pythonanywhere.com/xingqiu.html",
+        thumbnail: "https://blogger.googleusercontent.com/img/a/AVvXsEgHk3Q-_Ih12oDYoH1EdHkxvsWcY5wsy8GISLeuHOYYUJ7UGF5jkldhBsZzdUScR4RqayMozkEfkntsPIyIAzeqjLRaPbhac8W9omBKlPlV0pz3_nePtBGC9XpKrzGl5yXxxvRC0eyLAUzA1EW5kb9PObksujRq6fejbFJd9oWbBml2w7PKFnx71DBS_Tw",
+        description: "Explore the vast vocabularies along with Xingqiu."
+      },
+      {
+        title: "Logic Computer - Now on the web",
+        url: "https://logiccomputer.pythonanywhere.com/",
+        thumbnail: "https://blogger.googleusercontent.com/img/a/AVvXsEhAxdXWFWrI-OVrle66Kxhei58tHfzIKWBp-Bjg6bgZSlhC0QHofrDQes7svNpmq_KIbESkv8K1e4zW-__SxzxouVx3483vVg7CadZwVISi-aH6O_dfYn1vw4bbjw1FOdioBLNwAQxJ1XQH9KPqw-bSFKAYixJp0qZTYDZ2DEadqbPh74qTzW-Hgpt3wiU",
+        description: "Yeah, it's for my dearest Dad. His store deserves more."
+      },
+      {
+        title: "Lidya AI",
+        url: "https://logiccomputer.pythonanywhere.com/aissistant",
+        thumbnail: "https://blogger.googleusercontent.com/img/a/AVvXsEia6HuEAdeHkPUILYawUKCwHnV-oOJZA5T9KBpDHEEB6AlzcBcOCREFnlWgn1vQVMgnZk5tZAVPx-EOeMkgNQfnjxxprEY81DMKWvQfycoQtl_MvA7LiwIHgQmfRd2hjR822p_bT8ImYa149t7E_KCBrIShy68DIJDHVdRcfvpna2wY4PKtI4ogG-a9ixU",
+        description: "Meet Lidya, Logic Computer's Trustworthy Receptionist."
+      },
+      {
+        title: "Quiz on Web",
+        url: "https://jokojo3star.pythonanywhere.com/quiz.html",
+        thumbnail: "https://blogger.googleusercontent.com/img/a/AVvXsEiFOzNzgpulp6qniHaMzbYH8G-gX_0ci_fKgg9Bz0wpEc4HkfYBdkeAADVEJH0iqm0fqEjYcwDKZ_TURFlUMC9J-HOck7wnL45WlIUqun00-gqqdfLXAamE-kSDjd63ywNAyHZAOpu9lYy2nwi4iZp6BqSsXpl6RTnTSys5ao4FcWcVAoA6Yxqj65zBxo4",
+        description: "A simple, yet very useful quiz app with save & load feature for practicing your language. A duolingo-lite!"
+      },
+      {
+        title: "LLM Powered Quiz",
+        url: "https://jokojo3star.pythonanywhere.com/llmquiz.html",
+        thumbnail: "https://blogger.googleusercontent.com/img/a/AVvXsEhLSIbbwrVKdgRJmgncAiMBd8ZSk09ZblHnjnVBBTHTJ6HlsoIsYnJDKo9wtGtC2T7453Z6ctlOCRyG4JfLQ5K-bG2Hw-oIw9fJFNbxRFxmkkf9UoLLSRBtzLIJkvL2fiqnnMZAlpHNSDYesgpQyC1G-4nk4nfAmZF-jyTRb2Y8xJA9uhjpPduDd4yK5aU",
+        description: "A more advanced, unrestrained quiz app with save & load feature for practicing your language. A duolingo-LLM!"
+      },
+      {
+        title: "ClozeLLM",
+        url: "https://jokojo3star.pythonanywhere.com/clozellm.html",
+        thumbnail: "https://blogger.googleusercontent.com/img/a/AVvXsEhLSIbbwrVKdgRJmgncAiMBd8ZSk09ZblHnjnVBBTHTJ6HlsoIsYnJDKo9wtGtC2T7453Z6ctlOCRyG4JfLQ5K-bG2Hw-oIw9fJFNbxRFxmkkf9UoLLSRBtzLIJkvL2fiqnnMZAlpHNSDYesgpQyC1G-4nk4nfAmZF-jyTRb2Y8xJA9uhjpPduDd4yK5aU",
+        description: "Delve into fresh stories while learning new language! ClozeLLM will pick 5 random vocabs to train and generates new stories everytime!"
+      }
+    ];
+
+    const projectsGrid = document.getElementById('projectsGrid');
+
+    function createProjectCard({ title, url, thumbnail, description }) {
+      const link = document.createElement('a');
+      link.className = 'project-card';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+
+      const img = document.createElement('img');
+      img.className = 'project-image';
+      img.src = thumbnail;
+      img.alt = `${title} Thumbnail`;
+
+      const info = document.createElement('div');
+      info.className = 'project-info';
+
+      const projTitle = document.createElement('h3');
+      projTitle.className = 'project-title';
+      projTitle.textContent = title;
+
+      const projDesc = document.createElement('p');
+      projDesc.className = 'project-desc';
+      projDesc.textContent = description;
+
+      info.appendChild(projTitle);
+      info.appendChild(projDesc);
+
+      link.appendChild(img);
+      link.appendChild(info);
+
+      return link;
+    }
+
+    function renderProjects() {
+      projectsGrid.innerHTML = '';
+      projects.forEach(project => {
+        projectsGrid.appendChild(createProjectCard(project));
+      });
+    }
+
+    renderProjects();
+
+    // Animate skill bars when section is visible
+    const skillSpans = document.querySelectorAll('#skills .skill-bar span');
+
+    function animateSkills() {
+      skillSpans.forEach(span => {
+        const level = span.getAttribute('data-skill-level');
+        span.style.width = level + '%';
+      });
+    }
+
+    // Animate skills on scroll into view
+    function isElementInViewport(el) {
+      const rect = el.getBoundingClientRect();
+      return (
+        rect.top <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.bottom >= 0
+      );
+    }
+
+    window.addEventListener('scroll', () => {
+      const skillsSection = document.getElementById('skills');
+      if (isElementInViewport(skillsSection)) {
+        animateSkills();
+      }
+    });
+
+    // Highlight nav on scroll
+    const sections = document.querySelectorAll('section, header.hero');
+    const navLinks = document.querySelectorAll('nav a');
+
+    function onScroll() {
+      let scrollPos = window.scrollY + 120;
+      sections.forEach((section, index) => {
+        if (
+          scrollPos >= section.offsetTop &&
+          scrollPos < section.offsetTop + section.offsetHeight
+        ) {
+          navLinks.forEach(link => link.classList.remove('active'));
+          if (navLinks[index]) navLinks[index].classList.add('active');
+        }
+      });
+    }
+    window.addEventListener('scroll', onScroll);
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE HTML>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D Chatbot Demo</title>
+    <!-- Live2D Styles -->
+    <link rel="stylesheet" type="text/css" href="assets/demo.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <!-- Chatbot Styles -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { margin: 0; padding: 0; background: #16213e; font-family: 'Rajdhani', sans-serif; color: #a0c0ff; overflow-x: hidden; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .voice-container { position: relative; display: flex; flex-direction: column; align-items: center; min-height: 80vh; justify-content: center; }
+        .voice-orb { width: 200px; height: 200px; background: radial-gradient(circle, rgba(64, 128, 255, 0.8), rgba(64, 128, 255, 0.2)); border-radius: 50%; position: relative; box-shadow: 0 0 40px rgba(64, 128, 255, 0.5); transform-style: preserve-3d; transition: transform 0.1s ease; }
+        .orb-inner { width: 100%; height: 100%; background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent); border-radius: 50%; animation: pulse 3s infinite alternate; }
+        .voice-waves { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%; height: 100%; display: none; }
+        .voice-waves.active { display: block; }
+        .voice-wave { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid rgba(64, 128, 255, 0.5); opacity: 0; }
+        .voice-button { position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%); width: 60px; height: 60px; background: #40a0ff; border-radius: 50%; border: none; color: white; font-size: 24px; cursor: pointer; transition: background 0.3s ease; box-shadow: 0 0 20px rgba(64, 128, 255, 0.5); }
+        .voice-button:hover { background: #60b0ff; }
+        .voice-button.recording { background: #ff4040; }
+        .tech-readout { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.7); padding: 10px 20px; border-radius: 5px; font-size: 14px; color: #a0c0ff; text-align: center; opacity: 0; transition: opacity 0.5s ease; }
+        .tech-readout-status { font-weight: bold; color: #40a0ff; }
+        .tech-readout-data { margin-top: 5px; font-size: 12px; }
+        .message-display { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 80%; max-width: 600px; text-align: center; }
+        .user-message, .assistant-message { background: rgba(0, 0, 0, 0.5); padding: 10px 20px; margin: 10px 0; border-radius: 5px; display: none; position: relative; color: #a0c0ff; }
+        .user-message.active, .assistant-message.active { display: block; }
+        .speech-prompt { position: absolute; top: -40px; color: #a0c0ff; font-size: 16px; opacity: 0; transition: opacity 0.3s ease; }
+        .speech-prompt.active { opacity: 1; }
+        .button-hint { position: absolute; bottom: -60px; color: #a0c0ff; font-size: 14px; opacity: 0.6; transition: opacity 0.3s ease; }
+        .tech-circle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px; border: 2px solid rgba(64, 128, 255, 0.3); border-radius: 50%; opacity: 0; transition: opacity 0.5s ease; }
+        .tech-circle-outer { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; height: 400px; border: 1px solid rgba(64, 128, 255, 0.2); border-radius: 50%; opacity: 0; transition: opacity 0.5s ease; }
+        .tech-lines { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; height: 350px; background: radial-gradient(circle, transparent 50%, rgba(64, 128, 255, 0.1) 70%); opacity: 0; transition: opacity 0.5s ease; }
+        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes voice-wave { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1.2); opacity: 0.5; } }
+        #waifu { position: fixed; bottom: 0; right: 0; z-index: 10; }
+        #waifu-message { position: absolute; bottom: 620px; right: 20px; background: rgba(0, 0, 0, 0.7); color: #fff; padding: 10px; border-radius: 5px; display: none; }
+        .waifu-tool { position: absolute; bottom: 610px; right: 20px; display: flex; gap: 10px; }
+        .waifu-tool span { cursor: pointer; font-size: 20px; color: #fff; }
+        #live2d2 { width: 300px; height: 600px; }
+        #live2d4 { display: none; }
+    </style>
+</head>
+<body>
+    <!-- Live2D Navbar -->
+    <header class="navbar-fixed">
+        <nav class="bg-color nav-transparent">
+            <div id="navContainer" class="container">
+                <ul class="right">
+                    <li><a href="#"><i class="fa fa-home"></i><span>Home</span></a></li>
+                    <li><a href="#"><i id="searchIcon" class="fa fa-search" title="search"></i></a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+    <!-- Chatbot UI -->
+    <div class="voice-container">
+        <div class="tech-circle-outer"></div>
+        <div class="tech-circle"></div>
+        <div class="tech-lines"></div>
+        <div class="voice-orb">
+            <div class="orb-inner"></div>
+        </div>
+        <button class="voice-button"><i class="fas fa-microphone"></i></button>
+        <div class="tech-readout">
+            <div class="tech-readout-status"></div>
+            <div class="tech-readout-data"></div>
+        </div>
+        <div class="message-display">
+            <div class="user-message"></div>
+            <div class="assistant-message"></div>
+        </div>
+    </div>
+    <!-- Live2D Canvas -->
+    <div id="waifu">
+        <div id="waifu-message"></div>
+        <div class="waifu-tool">
+            <span class="icon-next"></span>
+            <span class="icon-home"></span>
+            <span class="icon-message"></span>
+            <span class="icon-camera"></span>
+            <span class="icon-volumeup"></span>
+            <span class="icon-volumedown"></span>
+            <span class="icon-about"></span>
+            <span class="icon-cross"></span>
+        </div>
+        <canvas id="live2d2"></canvas>
+        <canvas id="live2d4"></canvas>
+    </div>
+    <!-- Scripts -->
+    <script src="dist/live2d_bundle.js"></script>
+    <script async type="module" src="waifu-tips.js"></script>
+    <script src="chat.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            sessionStorage.removeItem('waifuHide');
+            const waifuDiv = document.getElementById('waifu');
+            waifuDiv.classList.remove('hide');
+            waifuDiv.style.display = 'block';
+            if (typeof initModel === 'function') {
+                initModel();
+                console.log('Live2D initModel called successfully');
+            } else {
+                console.error('initModel not defined - check live2d_bundle.js and waifu-tips.js');
+            }
+        });
+    </script>
+</body>
+</html>

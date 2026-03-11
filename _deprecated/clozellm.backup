@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mandarin — 5-Vocab Story Cloze (LLM7)</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#06b6d4; --success:#16a34a; --danger:#ef4444; --muted:#94a3b8;
+      --card-pad:18px;
+    }
+    *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071028 0%, #071022 60%);color:#e6eef6;padding:28px;display:flex;align-items:flex-start;justify-content:center;}
+    .wrap{width:980px;max-width:96%;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(2,6,23,0.6);}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    header h1{margin:0;font-size:20px;letter-spacing:0.2px}
+    .small{font-size:13px;color:var(--muted)}
+    .row{display:flex;gap:12px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap}
+    label{font-size:13px;color:var(--muted)}
+    input[type="text"], select{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    button{background:var(--accent);color:#021024;border:none;padding:9px 12px;border-radius:8px;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    #card{margin-top:8px;padding:var(--card-pad);background:rgba(255,255,255,0.02);border-radius:10px;min-height:160px}
+    #story{line-height:1.7;font-size:20px}
+    #controls{display:flex;gap:8px;align-items:center}
+    .hint{margin-top:10px;color:var(--muted);font-size:13px}
+    .feedback{margin-top:12px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);font-size:14px}
+    .stat{display:inline-block;margin-right:12px}
+    .correct{color:var(--success)}
+    .wrong{color:var(--danger)}
+    select.blank{min-width:120px}
+    .choices-key{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .pill{border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted)}
+    .muted{color:var(--muted)}
+    .divider{height:1px;background:rgba(255,255,255,0.06);margin:12px 0}
+    select.blank {background-color: #000;color: #e6eef6; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 6px 8px;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Mandarin — Story Cloze (LLM-driven)</h1>
+      <div class="small">Mode: <strong>Pick 5 → Make Story → Fill the Blanks</strong></div>
+    </header>
+
+    <div class="row">
+      <div>
+        <label for="level-select">Select Level</label><br>
+        <select id="level-select">
+          <option value="1wOdT3XP0XFnD4OHEjOwvMhk4pKqRAU3TZ9sHzKuJFkU">HSK 1</option>
+          <option value="1F4-cr9gya_fc8N-MlcwngH9oAwXLVbq-Cqcljww522k">HSK 2</option>
+          <option value="18qSMMc3F8NXKWOEFAflddZYYP-swUkqgziX0RRtioYk">HSK 3</option>
+          <option value="1xSrE6yfKhaOhhKn1uoy8M0oi1rdvsqlLlLLLccuiTTQ">HSK 4</option>
+          <option value="1tL5c0P0iNlx-lBSuI3P_4Nwr5R39pD505G4P6ekMR58">HSK 5</option>
+          <option value="1w_nu8tAJ6Gqts7gHyeL79e6LYPfQaVfUkMkY2MbeOdI">TOCFL</option>
+        </select>
+      </div>
+      <div>
+        <label for="llm7-key">LLM7 Token (optional)</label><br>
+        <input id="llm7-key" placeholder='Leave blank to use "unused" (low rate limit)' />
+      </div>
+      <div id="controls">
+        <button id="load-btn">Load Level</button>
+        <button id="start-btn" class="ghost" disabled>Make Story</button>
+        <button id="regen-btn" class="ghost" disabled>Regenerate</button>
+      </div>
+    </div>
+
+    <div id="card">
+      <div id="loading" class="small">Choose a level and click Load.</div>
+      <div id="story-area" style="display:none;">
+        <div class="small muted" id="picked"></div>
+        <div class="divider"></div>
+        <div id="story"></div>
+        <div class="divider"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button id="submit-btn">Submit</button>
+          <button id="next-btn" class="ghost" style="display:none;">New Set</button>
+          <div id="result" class="feedback" style="display:none;"></div>
+        </div>
+        <div class="hint" id="hint"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;color:var(--muted);font-size:13px;">
+      Notes:
+      <ul>
+        <li>LLM7 endpoint used: <code>https://api.llm7.io/v1/chat/completions</code>. (Use <code>api-key: "unused"</code> or a token from <code>token.llm7.io</code>.)</li>
+        <li>The app picks 5 random words from the selected level, asks LLM7 to use <em>all five</em> in a short story, then turns them into dropdown blanks.</li>
+      </ul>
+    </div>
+  </div>
+
+<script>
+const range = 'vocabs!A2:D'; // expected columns: vocab, pinyin, meaning, pass
+let vocabulary = [];
+let selectedFive = [];
+let lastFive = null;
+let blanksKey = []; // [{id, answer}]
+let storyRaw = '';
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function pickFive() {
+  if (vocabulary.length < 5) return [];
+  let tries = 0, picked = [];
+  do {
+    picked = shuffle(vocabulary).slice(0,5);
+    tries++;
+  } while (lastFive && picked.map(x=>x.vocab).join('|')===lastFive && tries<10)
+  lastFive = picked.map(x=>x.vocab).join('|');
+  return picked;
+}
+
+async function fetchVocabulary() {
+  disableRunBtns();
+  showLoading('Loading vocabulary...');
+  vocabulary = [];
+  const spreadsheetId = document.getElementById('level-select').value;
+  const gapiKey = "atob("QUl6YVN5QkE3S0M2VXZ3enY1SHBObklHQWV0YjdYUndwa1paTURN")"; // demo key used in original sample
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${encodeURIComponent(gapiKey)}`;
+    const res = await axios.get(url);
+    const rows = res.data.values || [];
+    vocabulary = rows.map(row=>({
+      vocab: row[0]||'',
+      pinyin: row[1]||'',
+      meaning: row[2]||'',
+      pass: parseInt(row[3])||0
+    })).filter(v=>v.vocab);
+    if (vocabulary.length<5) throw new Error('Not enough words (need ≥5).');
+    hideLoading();
+    document.getElementById('story-area').style.display = 'block';
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('regen-btn').disabled = true;
+    document.getElementById('picked').textContent = 'Ready. Click "Make Story" to generate a cloze.';
+  } catch (err) {
+    console.error(err);
+    showLoading('Failed to fetch vocabulary. See console.');
+  }
+}
+
+function showLoading(text){
+  document.getElementById('loading').style.display='block';
+  document.getElementById('story-area').style.display='none';
+  document.getElementById('loading').textContent = text || 'Loading...';
+}
+function hideLoading(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('story-area').style.display='block';
+}
+function disableRunBtns(){
+  document.getElementById('start-btn').disabled = true;
+  document.getElementById('regen-btn').disabled = true;
+}
+
+async function startStoryFlow(regen=false){
+  disableRunBtns();
+  document.getElementById('result').style.display='none';
+  document.getElementById('next-btn').style.display='none';
+  document.getElementById('hint').textContent='';
+  showLoading(regen? 'Regenerating story...' : 'Picking words & making story...');
+
+  selectedFive = pickFive();
+  const levelText = document.getElementById('level-select').options[document.getElementById('level-select').selectedIndex].text;
+  const fiveWords = selectedFive.map(x=>x.vocab);
+
+  const story = await getLLM7Story(levelText, fiveWords);
+  storyRaw = story || '';
+
+  // Build dropdowns
+  const { html, key } = storyToDropdowns(storyRaw, selectedFive);
+  blanksKey = key; // [{id, answer}]
+  renderStory(html, fiveWords);
+  hideLoading();
+  document.getElementById('regen-btn').disabled = false;
+}
+
+async function getLLM7Story(level, words){
+  const tokenInput = document.getElementById('llm7-key').value.trim();
+  const apiKeyHeader = tokenInput ? tokenInput : 'unused';
+  const basePrompt = `Write a short 200 words coherent story appropriate for ${level} using these vocabs: ${words.join(', ')}. Put the entire story inside square brackets [like this]. Do not add notes.`;
+
+  const maxTries = 3;
+  for (let attempt=1; attempt<=maxTries; attempt++){
+    try{
+      const res = await axios.post('https://api.llm7.io/v1/chat/completions', {
+        model: 'gpt-4o-mini-2024-07-18',
+        messages: [{role:'user', content: basePrompt}],
+        temperature: 0.5,
+        max_tokens: 220
+      }, {
+        headers: {'api-key': apiKeyHeader, 'Content-Type':'application/json'},
+        timeout: 30000
+      });
+      const text = res?.data?.choices?.[0]?.message?.content || '';
+      let inner = '';
+      const m = text.match(/\[([^\]]+)\]/);
+      inner = m ? m[1].trim() : text.trim();
+
+      // verify all five appear at least once
+      const allPresent = words.every(w => new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).test(inner));
+      if (!allPresent) {
+        if (attempt<maxTries) continue;
+        document.getElementById('hint').textContent = 'LLM did not include all 5 words. Using best-effort story with fallbacks.';
+      }
+      return inner;
+    }catch(err){
+      console.error('LLM7 story error', err);
+      if (attempt>=maxTries){
+        document.getElementById('hint').textContent = 'LLM7 request failed — showing a minimal fallback.';
+        return words.join('，') + '。';
+      }
+    }
+  }
+}
+
+function storyToDropdowns(story, pickedList){
+  // create stable ids and a shared options list (the five words)
+  const options = pickedList.map(x=>x.vocab);
+  const key = []; // {id, answer}
+  let html = story;
+
+  // Replace only the FIRST occurrence of each picked vocab with a blank.
+  pickedList.forEach((item, idx)=>{
+    const id = `blank_${idx+1}`;
+    const pattern = new RegExp(item.vocab.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+    if (pattern.test(html)){
+      html = html.replace(pattern, `__BLANK_${idx+1}__`);
+      key.push({id, answer: item.vocab});
+    }
+  });
+
+  // Convert placeholders to <select>
+  key.forEach((entry)=>{
+    const selectHTML = makeSelectHTML(entry.id, options);
+    html = html.replace(`__BLANK_${entry.id.split('_')[1]}__`, selectHTML);
+  });
+
+  return { html, key };
+}
+
+function makeSelectHTML(id, options){
+  const shuffled = shuffle(options);
+  const opts = ['<option value="" disabled selected>— 选择 —</option>']
+    .concat(shuffled.map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`))
+    .join('');
+  return `<select class="blank" id="${id}">${opts}</select>`;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+function renderStory(html, fiveWords){
+  const pickedLine = fiveWords.map(w=>`<span class="pill">${escapeHtml(w)}</span>`).join(' ');
+  document.getElementById('picked').innerHTML = `<strong>Words:</strong> ${pickedLine}`;
+  document.getElementById('story').innerHTML = html;
+}
+
+function grade(){
+  if (!blanksKey.length){ return; }
+  let correct=0, total=blanksKey.length;
+  const details = [];
+  blanksKey.forEach((b, i)=>{
+    const el = document.getElementById(b.id);
+    const val = el ? el.value : '';
+    const isRight = val === b.answer;
+    if (isRight) correct++;
+    details.push({idx:i+1, chosen: val||'(blank)', answer:b.answer, ok:isRight});
+  });
+  const score = `${correct}/${total}`;
+  const rows = details.map(d=>`
+    <div class="stat ${d.ok?'correct':'wrong'}">Blank ${d.idx}: ${escapeHtml(d.chosen)} ${d.ok? '✓' : `→ ${escapeHtml(d.answer)}`}</div>
+  `).join('');
+  const result = document.getElementById('result');
+  result.innerHTML = `<div><strong>Score: ${score}</strong></div><div style="margin-top:6px">${rows}</div>`;
+  result.style.display='block';
+  document.getElementById('next-btn').style.display='inline-block';
+}
+
+// Event wiring
+ document.getElementById('load-btn').onclick = fetchVocabulary;
+ document.getElementById('start-btn').onclick = ()=> startStoryFlow(false);
+ document.getElementById('regen-btn').onclick = ()=> startStoryFlow(true);
+ document.getElementById('submit-btn').onclick = grade;
+ document.getElementById('next-btn').onclick = ()=> startStoryFlow(false);
+
+// INIT
+(function init(){
+  document.getElementById('story-area').style.display='none';
+})();
+</script>
+</body>
+</html>

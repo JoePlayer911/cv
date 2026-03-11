@@ -1,0 +1,56 @@
+/* ==========================================================================
+   projects.css — Shared styles for project sub-pages
+   ========================================================================== */
+
+/* ---------- Back-to-Home Navigation ---------- */
+.back-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: rgba(6, 13, 31, 0.85);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+}
+
+.back-nav__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #8fa4c4;
+    text-decoration: none;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 999px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.back-nav__link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #72b4ff;
+}
+
+.back-nav__link svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+/* On full-screen apps (canvas games), use a floating pill style */
+.back-nav--floating {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    right: auto;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    padding: 6px 16px;
+}

@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM7.io + Gemini TTS – Live2D Demo</title>
+  <link rel="stylesheet" href="projects.css" />
+
+  <!-- ===== GLOBAL STYLES ===== -->
+  <style>
+    :root {
+      --bg-grad: linear-gradient(135deg, #e3f2fd, #fce4ec);
+      --brand-grad: linear-gradient(90deg, #007bff, #e91e63);
+      --panel-bg: rgba(255, 255, 255, 0.85);
+      --shadow-lg: 0 6px 12px rgba(0, 0, 0, .1);
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-grad);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      color: #333;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin: 18px 0 6px;
+      background: var(--brand-grad);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      pointer-events: none;
+      z-index: 10001;
+    }
+
+    /* --- Debug panel --- */
+    #debugPanel {
+      position: fixed;
+      top: 380px;
+      left: 10px;
+      background: var(--panel-bg);
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      z-index: 10000;
+      font-size: 14px;
+    }
+
+    #debugPanel p {
+      margin: 4px 0;
+    }
+
+    #debugPanel span {
+      font-weight: bold;
+      color: #007bff;
+    }
+
+    /* --- Flag menu --- */
+    #langMenu {
+      position: absolute;
+      display: none;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px;
+      background: #007bff;
+      border-radius: 10px;
+      box-shadow: var(--shadow-lg);
+      z-index: 10003;
+      max-width: 300px;
+      transition: all 0.2s ease;
+    }
+
+    #langMenu button {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      transition: transform 0.18s, background-color 0.2s;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    #langMenu button:hover {
+      transform: scale(1.1);
+      background-color: rgba(0, 123, 255, 0.1);
+    }
+
+    /* --- Slider panel --- */
+    #controls {
+      position: fixed;
+      top: 120px;
+      left: 10px;
+      background: var(--panel-bg);
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      z-index: 10000;
+    }
+
+    .slider {
+      margin: 10px 0;
+    }
+
+    .slider label {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    /* --- Settings Toggle --- */
+    #settingsBtn {
+      position: fixed;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px;
+      height: 44px;
+      font-size: 24px;
+      background: var(--panel-bg);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-left: none;
+      border-radius: 0 8px 8px 0;
+      box-shadow: var(--shadow-lg);
+      cursor: pointer;
+      z-index: 10005;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: background-color 0.2s, transform 0.2s;
+    }
+
+    #settingsBtn:hover {
+      background: #e9ecef;
+      transform: translateY(-50%) scale(1.05);
+    }
+
+    .hidden-panel {
+      display: none !important;
+    }
+
+    /* --- Live2D canvas --- */
+    canvas#live2dCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+
+    /* --- Chat dock --- */
+    #chatDock {
+      position: fixed;
+      bottom: 0;
+      width: 98%;
+      margin-left: 10px;
+      margin-right: 10px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 -4px 10px rgba(0, 0, 0, .1);
+      padding: 8px 10px;
+      z-index: 10002;
+    }
+
+    #responseBox {
+      max-height: 38vh;
+      overflow: auto;
+      margin-bottom: 8px;
+    }
+
+    #responseText {
+      margin: 0;
+      padding: 14px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      font-size: 18px;
+      line-height: 1.5;
+    }
+
+    /* --- Toggle Switch --- */
+    .toggle-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider-toggle {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider-toggle:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider-toggle {
+      background-color: #007bff;
+    }
+
+    input:checked+.slider-toggle:before {
+      transform: translateX(20px);
+    }
+
+    #promptRow {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    #textInput {
+      padding: 11px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, .1);
+      flex: 2;
+    }
+
+    #promptRow button#submitBtn {
+      flex: 0 0 100px;
+      padding: 11px 16px;
+      font-size: 16px;
+    }
+
+    #promptRow button#voiceBtn {
+      flex: 0 0 40px;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      font-size: 20px;
+      line-height: 40px;
+      text-align: center;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: #fff;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, .1);
+      cursor: pointer;
+      transition: all .25s;
+    }
+
+    button:hover {
+      background: #0056b3;
+      transform: translateY(-2px);
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #audioPlayer {
+      width: 220px;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 600px) {
+      .toggle-wrapper {
+        order: 2;
+      }
+
+      #promptRow {
+        order: 3;
+      }
+
+      #audioPlayer {
+        width: 100%;
+      }
+
+      #promptRow button#submitBtn {
+        flex: 0 0 90px;
+        font-size: 14px;
+        padding: 8px 12px;
+      }
+
+      #promptRow button#voiceBtn {
+        flex: 0 0 35px;
+        width: 35px;
+        height: 35px;
+        font-size: 18px;
+        line-height: 35px;
+      }
+    }
+
+    main {
+      flex: 1;
+      width: 100%;
+      padding-bottom: 190px;
+    }
+  </style>
+
+  <!-- PIXI & Live2D -->
+  <script src="src/SDKv4/Core/live2dcubismcore.js"></script>
+  <script src="src/SDKv4/Core/pixi.min.js"></script>
+  <script src="src/SDKv4/Core/cubism4.min.js"></script>
+</head>
+
+<body>
+  <nav class="back-nav back-nav--floating"><a href="index.html" class="back-nav__link"><svg viewBox="0 0 24 24">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg> Home</a></nav>
+  <h1>LLM7.io + Gemini TTS – Voice-First Demo</h1>
+
+  <!-- Flag dropdown -->
+  <div id="langMenu">
+    <button data-lang="en-US" title="English">🇺🇸</button>
+    <button data-lang="id-ID" title="Indonesian">🇮🇩</button>
+    <button data-lang="es-ES" title="Spanish">🇪🇸</button>
+    <button data-lang="zh-CN" title="Chinese">🇹🇼</button>
+  </div>
+
+  <!-- Settings Button -->
+  <button id="settingsBtn" onclick="toggleSettings()" title="Toggle Settings">⚙️</button>
+
+  <!-- Slider panel -->
+  <div id="controls" class="hidden-panel">
+    <div class="slider"><label>X Position: <span id="xValue">0</span></label><input type="range" id="xSlider" min="0"
+        max="800" value="57"></div>
+    <div class="slider"><label>Y Position: <span id="yValue">0</span></label><input type="range" id="ySlider" min="0"
+        max="800" value="400"></div>
+    <div class="slider"><label>Scale: <span id="scaleValue">0.18</span></label><input type="range" id="scaleSlider"
+        min="0.05" max="1.2" step="0.01" value="0.18"></div>
+    <div class="slider"><label>Mouth Intensity: <span id="mouthIntensityValue">1.0</span></label><input type="range"
+        id="mouthIntensitySlider" min="0.1" max="3.0" step="0.1" value="1.6"></div>
+  </div>
+
+  <!-- Debug panel -->
+  <div id="debugPanel" class="hidden-panel">
+    <p>Mouth Form: <span id="mouthFormValue">0</span></p>
+    <p>Low Freq Energy: <span id="lowFreqEnergyValue">0</span></p>
+    <p>Mid-High Freq Energy: <span id="midHighFreqEnergyValue">0</span></p>
+  </div>
+
+  <main></main>
+
+  <!-- Chat dock -->
+  <div id="chatDock">
+    <div id="responseBox">
+      <p id="responseText"></p>
+      <audio id="audioPlayer" controls></audio>
+    </div>
+    <div class="toggle-wrapper">
+      <label class="switch">
+        <input type="checkbox" id="ttsToggle" checked>
+        <span class="slider-toggle"></span>
+      </label>
+      <span>Enable ElevenLabs TTS</span>
+    </div>
+    <div id="promptRow">
+      <input type="text" id="textInput" placeholder="Type your prompt…">
+      <button id="submitBtn" onclick="generateSpeech()">Submit</button>
+      <button id="voiceBtn" onclick="showLangMenu()">🎤</button>
+    </div>
+  </div>
+
+  <canvas id="live2dCanvas"></canvas>
+
+  <!-- ===== SCRIPT ===== -->
+  <script>
+    /* ---------- Helpers ---------- */
+    const isMobile = () => /Mobi|Android/i.test(navigator.userAgent);
+
+    function toggleSettings() {
+      document.getElementById('controls').classList.toggle('hidden-panel');
+      document.getElementById('debugPanel').classList.toggle('hidden-panel');
+    }
+
+    /* ---------- Flag menu ---------- */
+    function showLangMenu() {
+      const menu = document.getElementById('langMenu');
+      const mic = document.getElementById('voiceBtn');
+      const r = mic.getBoundingClientRect();
+      menu.style.display = 'flex';
+      let leftPos = r.left + window.scrollX - 10;
+      const menuWidth = menu.offsetWidth;
+      if (leftPos + menuWidth > window.innerWidth) {
+        leftPos = window.innerWidth - menuWidth - 10;
+      }
+      if (leftPos < 0) {
+        leftPos = 10;
+      }
+      menu.style.left = leftPos + 'px';
+      menu.style.top = r.top + window.scrollY - menu.offsetHeight - 10 + 'px';
+    }
+    document.getElementById('langMenu').addEventListener('click', e => {
+      if (e.target.dataset.lang) {
+        document.getElementById('langMenu').style.display = 'none';
+        startVoiceRecognition(e.target.dataset.lang);
+      }
+    });
+
+    /* ---------- Voice + Chat ---------- */
+    let conversationHistory = [
+      { role: 'system', content: 'Your name is Lidya, a helpful assistant. If you write numbers, write them using alphabets (words), not digits. Keep your answers concise.' }
+    ], recognition, isLoading = false;
+    function startVoiceRecognition(lang) {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { alert('Speech recognition not supported'); return; }
+      recognition = new SR();
+      recognition.lang = lang || 'en-US';
+      recognition.interimResults = false;
+      recognition.onresult = e => { textInput.value = e.results[0][0].transcript; generateSpeech(); };
+      recognition.onerror = e => alert('Speech recognition error: ' + e.error);
+      recognition.start();
+    }
+
+    async function generateSpeech() {
+      if (isLoading) return;
+      const input = textInput.value.trim();
+      if (!input) { alert('Please type something first'); return; }
+      isLoading = true; submitBtn.disabled = true;
+
+      conversationHistory.push({ role: 'user', content: input });
+      const LLM7_URL = 'https://api.llm7.io/v1/chat/completions';
+      const ELEVENLABS_API_KEY = 'sk_016169a9acc02f2e8183a955aef6a280c0a366de314b8287';
+      const VOICE_ID = 'hpp4J3VqNfWAUOO0d1Us'; // Rachel or standard default voice
+
+      try {
+        // Fetch LLM response
+        const llmRes = await fetch(LLM7_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', messages: conversationHistory, api_key: 'unused', max_tokens: 120 })
+        });
+        const llmData = await llmRes.json();
+        const llmText = llmData.choices?.[0]?.message?.content || 'No response';
+        conversationHistory.push({ role: 'assistant', content: llmText });
+        responseText.textContent = llmText;
+
+        const useTTS = document.getElementById('ttsToggle').checked;
+        if (useTTS) {
+          // Fetch ElevenLabs TTS response
+          const ttsRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+            method: 'POST',
+            headers: {
+              'Accept': 'audio/mpeg',
+              'Content-Type': 'application/json',
+              'xi-api-key': ELEVENLABS_API_KEY
+            },
+            body: JSON.stringify({
+              text: llmText.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '').replace(/[*_~"#]/g, '').trim(),
+              model_id: 'eleven_multilingual_v2',
+              output_format: 'mp3_44100_128',
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.5
+              }
+            })
+          });
+
+          if (!ttsRes.ok) {
+            const errData = await ttsRes.json();
+            throw new Error(errData.detail?.status || 'ElevenLabs API Error');
+          }
+
+          const audioBlob = await ttsRes.blob();
+          audioPlayer.src = URL.createObjectURL(audioBlob);
+          audioPlayer.play();
+        }
+      } catch (err) { console.error(err); alert(err.message); }
+      isLoading = false; submitBtn.disabled = false; textInput.focus();
+    }
+
+    /* Enter-to-send (desktop) */
+    if (!isMobile()) {
+      textInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generateSpeech(); }
+      });
+    }
+
+
+
+    /* ---------- Live2D ---------- */
+    const app = new PIXI.Application({ view: live2dCanvas, autoStart: true, transparent: true, width: window.innerWidth, height: window.innerHeight });
+    function positionModel(model) {
+      const w = app.view.width, h = app.view.height,
+        xP = xSlider.value / 100, yP = ySlider.value / 100, s = parseFloat(scaleSlider.value);
+      model.position.set(w * xP, h * yP);
+      model.scale.set(s, s);
+      xValue.textContent = Math.round(xP * 100);
+      yValue.textContent = Math.round(yP * 100);
+      scaleValue.textContent = s.toFixed(2);
+    }
+    function loadP() {
+      PIXI.live2d.Live2DModel.from('model/haru/haru_greeter_t05.model3.json').then(model => {
+        window.live2dModel = model;
+        const mob = isMobile();
+        xSlider.value = mob ? 23 : 32; ySlider.value = mob ? 0 : 6; scaleSlider.value = mob ? 0.18 : 0.23;
+        positionModel(model);
+        model.internalModel.coreModel.setParameterValueById('ParamOpacity', 1);
+        app.stage.addChild(model); app.render();
+
+        window.addEventListener('resize', () => {
+          app.renderer.resize(window.innerWidth, window.innerHeight);
+          positionModel(model);
+        });
+        [xSlider, ySlider, scaleSlider].forEach(el => el.addEventListener('input', () => positionModel(model)));
+
+        /* lip-sync */
+        const ctx = new AudioContext(), src = ctx.createMediaElementSource(audioPlayer),
+          analyser = ctx.createAnalyser();
+        analyser.fftSize = 2048;
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        src.connect(analyser);
+        analyser.connect(ctx.destination);
+
+        let smoothedMouthForm = 1.0;
+        const smoothingFactor = 0.01;
+
+        function mouth() {
+          analyser.getByteFrequencyData(data);
+          const amp = data.reduce((a, b) => a + b, 0) / data.length,
+            intensity = parseFloat(mouthIntensitySlider.value);
+
+          model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', Math.min(amp / 128 * intensity, 1));
+
+          const lowFreqRange = data.slice(0, Math.floor(data.length * 0.2));
+          const midHighFreqRange = data.slice(Math.floor(data.length * 0.2), Math.floor(data.length * 0.6));
+          const lowFreqEnergy = lowFreqRange.reduce((a, b) => a + b, 0) / lowFreqRange.length || 0;
+          const midHighFreqEnergy = midHighFreqRange.reduce((a, b) => a + b, 0) / midHighFreqRange.length || 0;
+
+          const rawMouthForm = lowFreqEnergy > 0 ? Math.min(midHighFreqEnergy / (lowFreqEnergy + midHighFreqEnergy), 1) : 1;
+
+          smoothedMouthForm += (rawMouthForm - smoothedMouthForm) * smoothingFactor;
+
+          model.internalModel.coreModel.setParameterValueById('ParamMouthForm', Math.max(0, Math.min(smoothedMouthForm * intensity * 0.5, 1)));
+
+          document.getElementById('mouthFormValue').textContent = smoothedMouthForm.toFixed(3);
+          document.getElementById('lowFreqEnergyValue').textContent = lowFreqEnergy.toFixed(1);
+          document.getElementById('midHighFreqEnergyValue').textContent = midHighFreqEnergy.toFixed(1);
+
+          requestAnimationFrame(mouth);
+        }
+        audioPlayer.onplay = () => { ctx.resume(); mouth(); };
+      })
+        .catch(err => console.error('Live2D load error', err));
+    }
+    loadP();
+  </script>
+</body>
+
+</html>

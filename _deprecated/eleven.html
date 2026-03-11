@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM7.io + ElevenLabs – Live2D Demo</title>
+
+  <!-- ===== GLOBAL STYLES ===== -->
+  <style>
+    :root {
+      --bg-grad: linear-gradient(135deg, #e3f2fd, #fce4ec);
+      --brand-grad: linear-gradient(90deg, #007bff, #e91e63);
+      --panel-bg: rgba(255, 255, 255, 0.85);
+      --shadow-lg: 0 6px 12px rgba(0, 0, 0, .1);
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-grad);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    h1 {
+      font-size: 2rem;
+      margin: 18px 0 6px;
+      background: var(--brand-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      pointer-events: none;
+      z-index: 10001;
+    }
+
+    /* --- Debug panel --- */
+    #debugPanel {
+      position: fixed;
+      top: 380px; /* Below controls panel */
+      left: 10px;
+      background: var(--panel-bg);
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      z-index: 10000;
+      font-size: 14px;
+    }
+    #debugPanel p {
+      margin: 4px 0;
+    }
+    #debugPanel span {
+      font-weight: bold;
+      color: #007bff;
+    }
+
+    /* --- Flag menu --- */
+    #langMenu {
+      position: absolute;
+      display: none;
+      flex-direction: row;
+      flex-wrap: wrap; /* Allow wrapping for scalability */
+      gap: 8px;
+      padding: 8px;
+      background: #007bff;
+      border-radius: 10px;
+      box-shadow: var(--shadow-lg);
+      z-index: 10003;
+      max-width: 300px; /* Limit width to prevent overflow */
+      transition: all 0.2s ease; /* Smooth appearance */
+    }
+    #langMenu button {
+      background: none;
+      border: none;
+      font-size: 24px; /* Slightly smaller for better fit */
+      cursor: pointer;
+      transition: transform 0.18s, background-color 0.2s;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    #langMenu button:hover {
+      transform: scale(1.1);
+      background-color: rgba(0, 123, 255, 0.1); /* Subtle hover effect */
+    }
+
+    /* --- Slider panel --- */
+    #controls {
+      position: fixed;
+      top: 120px;
+      left: 10px;
+      background: var(--panel-bg);
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      z-index: 10000;
+    }
+    .slider {
+      margin: 10px 0;
+    }
+    .slider label {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    /* --- Live2D canvas --- */
+    canvas#live2dCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+
+    /* --- Chat dock --- */
+    #chatDock {
+      position: fixed;
+      bottom: 0;
+      width: 98%;
+      margin-left: 10px;
+      margin-right: 10px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 -4px 10px rgba(0, 0, 0, .1);
+      padding: 8px 10px;
+      z-index: 10002;
+    }
+    #responseBox {
+      max-height: 38vh;
+      overflow: auto;
+      margin-bottom: 8px;
+    }
+    #responseText {
+      margin: 0;
+      padding: 14px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      font-size: 18px;
+      line-height: 1.5;
+    }
+    #cipherRow {
+      display: flex;
+      margin-bottom: 6px;
+    }
+    #apiDecypher {
+      flex: 1;
+      padding: 11px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, .1);
+    }
+    #promptRow {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      align-items: stretch;
+    }
+    #textInput {
+      padding: 11px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, .1);
+      flex: 2;
+    }
+    #promptRow button#submitBtn {
+      flex: 0 0 100px;
+      padding: 11px 16px;
+      font-size: 16px;
+    }
+    #promptRow button#voiceBtn {
+      flex: 0 0 40px;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      font-size: 20px;
+      line-height: 40px;
+      text-align: center;
+    }
+    button {
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: #fff;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, .1);
+      cursor: pointer;
+      transition: all .25s;
+    }
+    button:hover {
+      background: #0056b3;
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    #audioPlayer {
+      width: 220px;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 600px) {
+      #cipherRow {
+        order: 2;
+      }
+      #promptRow {
+        order: 3;
+      }
+      #audioPlayer {
+        width: 100%;
+      }
+      #promptRow button#submitBtn {
+        flex: 0 0 90px;
+        font-size: 14px;
+        padding: 8px 12px;
+      }
+      #promptRow button#voiceBtn {
+        flex: 0 0 35px;
+        width: 35px;
+        height: 35px;
+        font-size: 18px;
+        line-height: 35px;
+      }
+    }
+    main {
+      flex: 1;
+      width: 100%;
+      padding-bottom: 190px;
+    }
+  </style>
+
+  <!-- PIXI & Live2D -->
+  <script src="/src/SDKv4/Core/live2dcubismcore.js"></script>
+  <script src="/src/SDKv4/Core/pixi.min.js"></script>
+  <script src="/src/SDKv4/Core/cubism4.min.js"></script>
+</head>
+<body>
+  <h1>LLM7.io + ElevenLabs – Voice-First Demo</h1>
+
+  <!-- Flag dropdown -->
+  <div id="langMenu">
+    <button data-lang="en-US" title="English">🇺🇸</button>
+    <button data-lang="id-ID" title="Indonesian">🇮🇩</button>
+    <button data-lang="es-ES" title="Spanish">🇪🇸</button>
+    <button data-lang="zh-CN" title="Chinese">🇹🇼</button>
+  </div>
+
+  <!-- Slider panel -->
+  <div id="controls">
+    <div class="slider"><label>X Position: <span id="xValue">0</span></label><input type="range" id="xSlider" min="0" max="800" value="57"></div>
+    <div class="slider"><label>Y Position: <span id="yValue">0</span></label><input type="range" id="ySlider" min="0" max="800" value="400"></div>
+    <div class="slider"><label>Scale: <span id="scaleValue">0.18</span></label><input type="range" id="scaleSlider" min="0.05" max="1.2" step="0.01" value="0.18"></div>
+    <div class="slider"><label>Mouth Intensity: <span id="mouthIntensityValue">1.0</span></label><input type="range" id="mouthIntensitySlider" min="0.1" max="3.0" step="0.1" value="1.6"></div>
+  </div>
+
+  <!-- Debug panel -->
+  <div id="debugPanel">
+    <p>Mouth Form: <span id="mouthFormValue">0</span></p>
+    <p>Low Freq Energy: <span id="lowFreqEnergyValue">0</span></p>
+    <p>Mid-High Freq Energy: <span id="midHighFreqEnergyValue">0</span></p>
+  </div>
+
+  <main></main>
+
+  <!-- Chat dock -->
+  <div id="chatDock">
+    <div id="responseBox">
+      <p id="responseText"></p>
+      <audio id="audioPlayer" controls></audio>
+    </div>
+    <div id="cipherRow">
+      <input type="text" id="apiDecypher" placeholder="Enter API cipher keyword">
+    </div>
+    <div id="promptRow">
+      <input type="text" id="textInput" placeholder="Type your prompt…">
+      <button id="submitBtn" onclick="generateSpeech()">Submit</button>
+      <button id="voiceBtn" onclick="showLangMenu()">🎤</button>
+    </div>
+  </div>
+
+  <canvas id="live2dCanvas"></canvas>
+
+  <!-- ===== SCRIPT ===== -->
+  <script>
+  /* ---------- Helpers ---------- */
+  const isMobile = () => /Mobi|Android/i.test(navigator.userAgent);
+
+  /* ---------- Flag menu ---------- */
+  function showLangMenu() {
+    const menu = document.getElementById('langMenu');
+    const mic = document.getElementById('voiceBtn');
+    const r = mic.getBoundingClientRect();
+    menu.style.display = 'flex';
+    let leftPos = r.left + window.scrollX - 10; // 10px left of mic button
+    const menuWidth = menu.offsetWidth;
+    // Prevent menu from going off the right edge
+    if (leftPos + menuWidth > window.innerWidth) {
+      leftPos = window.innerWidth - menuWidth - 10; // 10px from right edge
+    }
+    // Prevent menu from going off the left edge
+    if (leftPos < 0) {
+      leftPos = 10; // 10px from left edge
+    }
+    menu.style.left = leftPos + 'px';
+    menu.style.top = r.top + window.scrollY - menu.offsetHeight - 10 + 'px'; // 10px above mic
+  }
+  document.getElementById('langMenu').addEventListener('click', e => {
+    if (e.target.dataset.lang) {
+      document.getElementById('langMenu').style.display = 'none';
+      startVoiceRecognition(e.target.dataset.lang);
+    }
+  });
+
+  /* ---------- Voice + Chat ---------- */
+  let conversationHistory = [], recognition, isLoading = false;
+  function startVoiceRecognition(lang) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert('Speech recognition not supported'); return; }
+    recognition = new SR();
+    recognition.lang = lang || 'en-US';
+    recognition.interimResults = false;
+    recognition.onresult = e => { textInput.value = e.results[0][0].transcript; generateSpeech(); };
+    recognition.onerror = e => alert('Speech recognition error: ' + e.error);
+    recognition.start();
+  }
+
+  async function generateSpeech() {
+    if (isLoading) return;
+    const input = textInput.value.trim();
+    if (!input) { alert('Please type something first'); return; }
+    isLoading = true; submitBtn.disabled = true;
+
+    conversationHistory.push({ role: 'user', content: input });
+    const LLM7_URL = 'https://api.llm7.io/v1/chat/completions',
+          VOICE_ID = 'CYh11MgQpILGsPf7nfxQ',
+          ELEVEN_KEY = decipherKeyword(apiDecypher.value.trim());
+
+    try {
+      const llmRes = await fetch(LLM7_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'gpt-4o-mini-2024- "07-18', messages: conversationHistory, api_key: 'unused', max_tokens: 120 })
+      });
+      const llmData = await llmRes.json();
+      const llmText = llmData.choices?.[0]?.message?.content || 'No response';
+      conversationHistory.push({ role: 'assistant', content: llmText });
+      responseText.textContent = llmText;
+
+      const ttsRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+        method: 'POST',
+        headers: { accept: 'audio/mpeg', 'content-type': 'application/json', 'xi-api-key': ELEVEN_KEY },
+        body: JSON.stringify({ text: llmText, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.5, similarity_boost: 0 } })
+      });
+      audioPlayer.src = URL.createObjectURL(await ttsRes.blob());
+      audioPlayer.play();
+    } catch (err) { console.error(err); alert(err.message); }
+    isLoading = false; submitBtn.disabled = false; textInput.focus();
+  }
+
+  /* Enter-to-send (desktop) */
+  if (!isMobile()) {
+    textInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); generateSpeech(); }
+    });
+  }
+
+  /* ---------- Cipher helper ---------- */
+  const cipherMap = { a: '18db88b1f', b: 'sk_4a7cc', c: '34ua9e4p', d: '2cveb7aa', e: 'cb35d4cae', f: 'sk_4a7er', g: '4576rtfg', h: '34jk253d', i: '935bc99b', j: '01n45hjk', k: '3n76rsd3', l: '0d9e4f253', m: 'b20c12c1a', n: 'd9eb7a4b6', o: 'f2212b20', p: 'sk_35d6f', q: 'sk_4a7sd', r: 'ui7689ap', s: '37789ee6', t: '48b5fb77e', u: '4bd88a1c', v: '2d88a113', w: 'b5fber8a', x: 'sk_4a7qw', y: '4bdzfb77', z: 'sk_4a7rd' };
+  const decipherKeyword = k => k.split('').map(l => cipherMap[l.toLowerCase()] || '').join('');
+
+    /* ---------- Live2D ---------- */
+    const app = new PIXI.Application({ view: live2dCanvas, autoStart: true, transparent: true, width: window.innerWidth, height: window.innerHeight });
+    function positionModel(model) {
+      const w = app.view.width, h = app.view.height,
+            xP = xSlider.value / 100, yP = ySlider.value / 100, s = parseFloat(scaleSlider.value);
+      model.position.set(w * xP, h * yP);
+      model.scale.set(s, s);
+      xValue.textContent = Math.round(xP * 100);
+      yValue.textContent = Math.round(yP * 100);
+      scaleValue.textContent = s.toFixed(2);
+    }
+    function loadPaimon() {
+      PIXI.live2d.Live2DModel.from('/model/haru/haru_greeter_t05.model3.json')
+        .then(model => {
+          window.live2dModel = model;
+          const mob = isMobile();
+          xSlider.value = mob ? 23 : 32; ySlider.value = mob ? 0 : 6; scaleSlider.value = mob ? 0.18 : 0.23;
+          positionModel(model);
+          model.internalModel.coreModel.setParameterValueById('ParamOpacity', 1);
+          app.stage.addChild(model); app.render();
+
+          window.addEventListener('resize', () => {
+            app.renderer.resize(window.innerWidth, window.innerHeight);
+            positionModel(model);
+          });
+          [xSlider, ySlider, scaleSlider].forEach(el => el.addEventListener('input', () => positionModel(model)));
+
+          /* lip-sync */
+          const ctx = new AudioContext(), src = ctx.createMediaElementSource(audioPlayer),
+                analyser = ctx.createAnalyser();
+          analyser.fftSize = 2048;
+          const data = new Uint8Array(analyser.frequencyBinCount);
+          src.connect(analyser);
+          analyser.connect(ctx.destination);
+
+          let smoothedMouthForm = 1.0; // Initial smoothed value
+          const smoothingFactor = 0.01; // Adjust this (0 to 1) for smoothness (lower = smoother)
+
+          function mouth() {
+            analyser.getByteFrequencyData(data);
+            const amp = data.reduce((a, b) => a + b, 0) / data.length,
+                  intensity = parseFloat(mouthIntensitySlider.value);
+
+            // Calculate ParamMouthOpenY
+            model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', Math.min(amp / 128 * intensity, 1));
+
+            // Analyze waveform for ParamMouthForm
+            const lowFreqRange = data.slice(0, Math.floor(data.length * 0.2));
+            const midHighFreqRange = data.slice(Math.floor(data.length * 0.2), Math.floor(data.length * 0.6));
+            const lowFreqEnergy = lowFreqRange.reduce((a, b) => a + b, 0) / lowFreqRange.length || 0;
+            const midHighFreqEnergy = midHighFreqRange.reduce((a, b) => a + b, 0) / midHighFreqRange.length || 0;
+
+            // Calculate raw mouth form
+            const rawMouthForm = lowFreqEnergy > 0 ? Math.min(midHighFreqEnergy / (lowFreqEnergy + midHighFreqEnergy), 1) : 1;
+
+            // Apply smoothing to mouth form
+            smoothedMouthForm += (rawMouthForm - smoothedMouthForm) * smoothingFactor;
+
+            // Set ParamMouthForm with smoothed value
+            model.internalModel.coreModel.setParameterValueById('ParamMouthForm', Math.max(0, Math.min(smoothedMouthForm * intensity * 0.5, 1)));
+
+            // Update debug panel
+            document.getElementById('mouthFormValue').textContent = smoothedMouthForm.toFixed(3);
+            document.getElementById('lowFreqEnergyValue').textContent = lowFreqEnergy.toFixed(1);
+            document.getElementById('midHighFreqEnergyValue').textContent = midHighFreqEnergy.toFixed(1);
+
+            requestAnimationFrame(mouth);
+          }
+          audioPlayer.onplay = () => { ctx.resume(); mouth(); };
+        })
+        .catch(err => console.error('Live2D load error', err));
+    }
+    loadPaimon();
+  </script>
+</body>
+</html>

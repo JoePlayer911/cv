@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vocab Hunt — LLM7 Powered</title>
+  <link rel="stylesheet" href="projects.css" />
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="shared.js" defer></script>
+  <style>
+    :root {
+      --bg: #0f1724;
+      --card: #0b1220;
+      --accent: #06b6d4;
+      --muted: #94a3b8;
+      --card-pad: 18px;
+    }
+
+    body {
+      margin: 0;
+      padding: 28px;
+      background: linear-gradient(180deg, #071028 0%, #071022 60%);
+      color: #e6eef6;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+
+    .wrap {
+      width: 880px;
+      max-width: 96%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 8px 30px rgba(2, 6, 23, 0.6);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    input[type="text"],
+    select {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: transparent;
+      color: inherit;
+    }
+
+    button {
+      background: var(--accent);
+      color: #021024;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button.ghost {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+    }
+
+    #quiz {
+      margin-top: 8px;
+      padding: var(--card-pad);
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 10px;
+      min-height: 200px;
+    }
+
+    #vocab-word {
+      font-size: 2rem;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    #hint-box {
+      margin-top: 16px;
+      font-size: 1.1rem;
+      color: var(--muted);
+    }
+
+    #score {
+      margin-top: 16px;
+      font-size: 1.2rem;
+      text-align: center;
+    }
+
+    #hint-btn,
+    #guess-btn,
+    #next-btn {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    #guess-input {
+      padding: 8px;
+      width: 200px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="back-nav"><a href="index.html" class="back-nav__link"><svg viewBox="0 0 24 24">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg> Home</a></nav>
+  <div class="wrap">
+    <header>
+      <h1>Vocab Hunt — LLM7 Powered</h1>
+      <div class="small">Score: <strong id="score">100</strong></div>
+    </header>
+
+    <div class="row">
+      <div>
+        <label for="level-select">Select Level</label><br>
+        <select id="level-select">
+          <option value="1wOdT3XP0XFnD4OHEjOwvMhk4pKqRAU3TZ9sHzKuJFkU">HSK 1</option>
+          <option value="1F4-cr9gya_fc8N-MlcwngH9oAwXLVbq-Cqcljww522k">HSK 2</option>
+          <option value="18qSMMc3F8NXKWOEFAflddZYYP-swUkqgziX0RRtioYk">HSK 3</option>
+        </select>
+      </div>
+      <div>
+        <label for="llm7-key">LLM7 Token (optional)</label><br>
+        <input id="llm7-key" placeholder='Leave blank to use "unused"' />
+      </div>
+    </div>
+
+    <div id="quiz">
+      <div id="loading" class="small">Loading vocabulary...</div>
+      <div id="game-container" style="display:none;">
+        <div id="vocab-word">Loading...</div>
+        <input type="text" id="guess-input" placeholder="Type your guess" disabled />
+        <button id="guess-btn" disabled>Guess</button>
+        <button id="hint-btn" disabled>Hint (-10)</button>
+        <div id="hint-box"></div>
+        <button id="next-btn" style="display:none;">Next Word</button>
+      </div>
+    </div>
+
+    <script>
+      const range = 'vocabs!A2:D';
+      let vocabulary = [];
+      let currentWord = null;
+      let hints = [];
+      let hintIndex = 0;
+      let score = 100;
+
+      // Update score display
+      function updateScore() {
+        document.getElementById('score').textContent = score;
+      }
+
+      // Fetch vocabulary from Google Sheets
+      async function fetchVocabulary() {
+        const spreadsheetId = document.getElementById('level-select').value;
+        const gapiKey = atob("QUl6YVN5QkE3S0M2VXZ3enY1SHBObklHQWV0YjdYUndwa1paTURN");
+        try {
+          const res = await axios.get(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${gapiKey}`);
+          const rows = res.data.values || [];
+          vocabulary = rows.map(r => ({ vocab: r[0], pinyin: r[1] || '', meaning: r[2] || '', pass: parseInt(r[3]) || 0 }));
+        } catch (err) {
+          console.error(err);
+          alert('Failed to fetch vocab, using fallback.');
+          vocabulary = [
+            { vocab: '你', pinyin: 'nǐ', meaning: 'you', pass: 0 },
+            { vocab: '好', pinyin: 'hǎo', meaning: 'good', pass: 0 },
+            { vocab: '学', pinyin: 'xué', meaning: 'learn', pass: 0 }
+          ];
+        }
+      }
+
+      // Pick a random word
+      function pickRandomWord() {
+        if (vocabulary.length === 0) return null;
+        return vocabulary[Math.floor(Math.random() * vocabulary.length)];
+      }
+
+      // Get hints from LLM7
+      async function getHintsFromLLM7(prompt) {
+        const apiKey = document.getElementById('llm7-key').value.trim() || 'unused';
+        const res = await axios.post('https://api.llm7.io/v1/chat/completions', {
+          model: "gpt-4o-mini-2024-07-18",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.5, max_tokens: 128
+        }, {
+          headers: { 'api-key': apiKey, 'Content-Type': 'application/json' }
+        });
+
+        const text = res?.data?.choices?.[0]?.message?.content || '';
+        const matches = text.match(/\[([^\]]+)\]/g) || [];
+        return matches.map(m => m.slice(1, -1).trim());
+      }
+
+      // Load next word
+      async function nextWord() {
+        hintIndex = 0;
+        hints = [];
+        document.getElementById('hint-box').innerHTML = '';
+        document.getElementById('next-btn').style.display = 'none';
+        document.getElementById('guess-input').value = '';
+        document.getElementById('guess-input').disabled = true;
+        document.getElementById('guess-btn').disabled = true;
+        document.getElementById('hint-btn').disabled = true;
+
+        currentWord = pickRandomWord();
+        if (!currentWord) return;
+
+        document.getElementById('vocab-word').textContent = 'Loading hints...';
+
+        try {
+          const prompt = `Give me 5 hints in English about the word ${currentWord.vocab}. Separate each hint with square brackets [].`;
+          hints = await getHintsFromLLM7(prompt);
+          if (hints.length === 0) hints = ['Hint1', 'Hint2', 'Hint3', 'Hint4', 'Hint5'];
+        } catch (err) {
+          console.error(err);
+          hints = ['Hint1', 'Hint2', 'Hint3', 'Hint4', 'Hint5'];
+        }
+
+        document.getElementById('vocab-word').textContent = 'Guess the word!';
+        document.getElementById('guess-input').disabled = false;
+        document.getElementById('guess-btn').disabled = false;
+        document.getElementById('hint-btn').disabled = false;
+      }
+
+      // Hint button click
+      document.getElementById('hint-btn').onclick = () => {
+        if (hintIndex < hints.length) {
+          document.getElementById('hint-box').innerHTML += hints[hintIndex] + '<br>';
+          hintIndex++;
+          score = Math.max(0, score - 10);
+          updateScore();
+        } else {
+          alert('No more hints!');
+        }
+      };
+
+      // Guess button click
+      document.getElementById('guess-btn').onclick = () => {
+        const guess = document.getElementById('guess-input').value.trim();
+        if (!guess) return;
+        if (guess === currentWord.vocab) {
+          alert('Correct! The word was: ' + currentWord.vocab);
+          score += 20;        // <-- add bonus points
+          updateScore();
+          document.getElementById('next-btn').style.display = 'inline-block';
+        } else {
+          alert('Incorrect, try again.');
+        }
+      };
+
+      // Next word button
+      document.getElementById('next-btn').onclick = nextWord;
+
+      // Auto-start game on page load
+      (async function initGame() {
+        document.getElementById('game-container').style.display = 'block';
+        updateScore();
+        await fetchVocabulary();
+        nextWord();
+        document.getElementById('loading').style.display = 'none';
+      })();
+    </script>
+  </div>
+</body>
+
+</html>

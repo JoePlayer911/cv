@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Protect Mondstadt</title>
+  <link rel="stylesheet" href="projects.css" />
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="shared.js" defer></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pirata+One&display=swap');
+
+    :root {
+      --hud-bg: rgba(0, 0, 0, 0.45);
+      --hud-fg: #ffecd1;
+      --accent: #deb887;
+      --accent-dark: #8b5e3c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      color: #fff;
+      font-family: 'Pirata One', cursive;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      user-select: none;
+      cursor: none;
+    }
+
+    canvas {
+      image-rendering: pixelated;
+      display: block;
+    }
+
+    #intro-screen {
+      position: absolute;
+      inset: 0;
+      background: url('./assets/the-crux-docks.jpg') no-repeat center/cover;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 4;
+      color: #f5deb3;
+      text-shadow: 3px 3px 6px black;
+      cursor: pointer;
+    }
+
+    #intro-screen h1 {
+      font-size: 60px;
+      margin: 0 0 10px;
+    }
+
+    #intro-screen p {
+      font-size: 24px;
+      margin: 0;
+    }
+
+    #start-menu {
+      position: absolute;
+      inset: 0;
+      background: url('./assets/the-crux-docks.jpg') no-repeat center/cover;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 3;
+    }
+
+    #start-menu h1 {
+      font-size: 64px;
+      color: #f5deb3;
+      text-shadow: 4px 4px #000;
+      margin-bottom: 20px;
+    }
+
+    #start-menu h2 {
+      font-size: 32px;
+      color: #ffecb3;
+      margin: 10px 0 20px;
+      text-shadow: 4px 4px #000;
+    }
+
+    #start-menu label {
+      font-size: 22px;
+      color: #ffecb3;
+      text-shadow: 2px 2px #000;
+    }
+
+    #start-menu select,
+    #start-menu input[type=range],
+    #start-menu button {
+      font-size: 24px;
+      margin: 10px;
+      padding: 10px 20px;
+      border: 2px solid var(--accent-dark);
+      background: var(--accent);
+      color: #3e2723;
+      border-radius: 12px;
+      font-family: 'Pirata One', cursive;
+      transition: background-color .2s ease;
+    }
+
+    #start-menu button:hover {
+      background: #d2a679;
+      cursor: pointer;
+    }
+
+    #hud {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 12px 16px;
+      z-index: 2;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-family: 'Pirata One', cursive;
+      font-size: 22px;
+      background: linear-gradient(180deg, transparent, var(--hud-bg));
+    }
+
+    .hud-box {
+      background: var(--hud-bg);
+      border: 2px solid var(--accent-dark);
+      color: var(--hud-fg);
+      padding: 8px 12px;
+      border-radius: 12px;
+      min-width: 160px;
+      text-shadow: 2px 2px #000;
+    }
+
+    #bullet-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #bullet-pill {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      min-width: 120px;
+      text-align: center;
+      font-size: 24px;
+    }
+
+    #prompt-tip {
+      opacity: .75;
+      font-size: 16px;
+    }
+
+    #input-container {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="back-nav back-nav--floating"><a href="index.html" class="back-nav__link"><svg viewBox="0 0 24 24">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg> Home</a></nav>
+  <canvas id="gameCanvas" width="1280" height="720"></canvas>
+  <div id="intro-screen">
+    <h1>Protect Mondstadt</h1>
+    <p>Press anywhere to start</p>
+  </div>
+  <div id="start-menu">
+    <h1>Protect Mondstadt</h1>
+    <h2>Highscore: <span id="highscore">0</span></h2>
+    <label for="level-select">Select Level:</label>
+    <select id="level-select">
+      <option value="1wOdT3XP0XFnD4OHEjOwvMhk4pKqRAU3TZ9sHzKuJFkU">HSK 1</option>
+      <option value="1F4-cr9gya_fc8N-MlcwngH9oAwXLVbq-Cqcljww522k">HSK 2</option>
+      <option value="18qSMMc3F8NXKWOEFAflddZYYP-swUkqgziX0RRtioYk">HSK 3</option>
+      <option value="1xSrE6yfKhaOhhKn1uoy8M0oi1rdvsqlLlLLLccuiTTQ">HSK 4</option>
+      <option value="1tL5c0P0iNlx-lBSuI3P_4Nwr5R39pD505G4P6ekMR58">HSK 5</option>
+      <option value="1w_nu8tAJ6Gqts7gHyeL79e6LYPfQaVfUkMkY2MbeOdI">Jojo's Level</option>
+      <option value="1KMuaKkwyhCxBIwIkySSnt9NoaWl1zLcDGGanV92kAjU">English Level</option>
+      <option value="1At2i2SRUNLiJXpF2hYP1HoSFMmVjEc9l9ptZNQwYp3M">Indonesia Level</option>
+    </select>
+    <br />
+    <label for="speed-slider">Speed Multiplier: <span id="speed-value">1</span>x</label>
+    <input type="range" id="speed-slider" min="0.2" max="2" step="0.1" value="1" />
+    <br />
+    <button id="start-btn">Embark Adventure</button>
+  </div>
+  <div id="hud">
+    <div class="hud-box">Health: <span id="lives-count">5</span></div>
+    <div class="hud-box">Score: <span id="score">0</span></div>
+    <div class="hud-box" id="bullet-box">
+      Bullet: <span id="bullet-pill">...</span>
+      <span id="prompt-tip">(shoot empty area to switch)</span>
+    </div>
+  </div>
+  <audio id="startMusic" src="./assets/a-day-in-mondstadt.mp3" loop></audio>
+  <audio id="gameMusic" src="./assets/flows-of-jade-like-water.mp3" loop></audio>
+  <audio id="shootSfx" src="./assets/slash.mp3"></audio>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const background = new Image(); background.src = './assets/the-crux.jpg';
+    const slimeImg = new Image(); slimeImg.src = './assets/slime.png';
+    const startMusic = document.getElementById('startMusic');
+    const gameMusic = document.getElementById('gameMusic');
+    const shootSfx = document.getElementById('shootSfx');
+    const introScreen = document.getElementById('intro-screen');
+    const startMenu = document.getElementById('start-menu');
+    const hud = document.getElementById('hud');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives-count');
+    const highscoreEl = document.getElementById('highscore');
+    const speedSlider = document.getElementById('speed-slider');
+    const speedValue = document.getElementById('speed-value');
+    const bulletPill = document.getElementById('bullet-pill');
+
+    speedSlider.addEventListener('input', (e) => {
+      speedValue.textContent = e.target.value;
+    });
+
+    let isGameRunning = false;
+    let score = 0;
+    let lives = 5;
+    let highscore = 0;
+    let vocab = [];
+    let enemyList = [];
+    const baseSpawnInterval = 3000;
+    const minSpawnInterval = 250;
+    let spawnInterval = baseSpawnInterval;
+    let lastSpawn = 0;
+    const Z_START_MIN = 900;
+    const Z_START_MAX = 1400;
+    const Z_HIT_THRESHOLD = 80;
+    let bulletOptions = [];
+    let currentBulletIndex = 0;
+    let waveActive = false;
+
+    introScreen.addEventListener('click', () => {
+      introScreen.style.display = 'none';
+      startMenu.style.display = 'flex';
+      startMusic.play().catch(() => { });
+    });
+
+    document.getElementById('start-btn').addEventListener('click', async () => {
+      startMenu.style.display = 'none';
+      startMusic.pause(); startMusic.currentTime = 0;
+      hud.style.display = 'flex';
+      await resetAndStart();
+    });
+
+    async function resetAndStart() {
+      isGameRunning = false;
+      score = 0; lives = 5; updateHUD();
+      enemyList = []; bulletOptions = []; currentBulletIndex = 0;
+      spawnInterval = baseSpawnInterval; lastSpawn = performance.now();
+      waveActive = false;
+      await fetchVocabulary();
+      isGameRunning = true;
+      gameMusic.play().catch(() => { });
+      requestAnimationFrame(gameLoop);
+    }
+
+    async function fetchVocabulary() {
+      const spreadsheetId = document.getElementById('level-select').value;
+      try {
+        const data = await fetchVocabularyFromSheet(spreadsheetId);
+        vocab = data.map(item => ({ hanzi: item.vocab, pinyin: item.pinyin }));
+      } catch (e) {
+        console.error('Error fetching vocabulary:', e);
+        vocab = [];
+      }
+    }
+
+    function randRange(min, max) { return Math.random() * (max - min) + min; }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function spawnWave() {
+      if (!vocab.length) return;
+      const waveSet = [];
+      const w = canvas.width, h = canvas.height, margin = 0.2;
+      const positions = [
+        { x: randRange(w * margin, w * (1 - margin)), y: -50, side: 0 },
+        { x: w + 50, y: randRange(h * margin, h * (1 - margin)), side: 1 },
+        { x: randRange(w * margin, w * (1 - margin)), y: h + 50, side: 2 },
+        { x: -50, y: randRange(h * margin, h * (1 - margin)), side: 3 },
+        { x: randRange(w * 0.3, w * 0.7), y: randRange(h * 0.3, h * 0.7), side: 4 }
+      ];
+      for (let i = 0; i < 5; i++) {
+        const v = vocab[Math.floor(Math.random() * vocab.length)];
+        const pos = positions[i];
+        const zStart = randRange(Z_START_MIN, Z_START_MAX);
+        waveSet.push({
+          x: pos.x, y: pos.y, z: zStart, zStart,
+          hanzi: v.hanzi, pinyin: v.pinyin, alive: true,
+          speed: (0.5 + Math.random() * 0.3) * parseFloat(speedSlider.value)
+        });
+      }
+      enemyList.push(...waveSet);
+      generateWaveBullets(waveSet);
+      waveActive = true;
+    }
+
+    function generateWaveBullets(waveSet) {
+      bulletOptions = waveSet.map(e => e.pinyin);
+      currentBulletIndex = 0;
+      updateBulletHUD();
+    }
+
+    function cycleBullet() {
+      if (bulletOptions.length === 0) return;
+      currentBulletIndex = (currentBulletIndex + 1) % bulletOptions.length;
+      updateBulletHUD();
+    }
+
+    function updateBulletHUD() {
+      bulletPill.textContent = bulletOptions[currentBulletIndex] || '...';
+    }
+
+    function updateHUD() {
+      scoreEl.textContent = score;
+      livesEl.textContent = lives;
+    }
+
+    function endGame() {
+      isGameRunning = false;
+      gameMusic.pause(); gameMusic.currentTime = 0;
+      startMusic.play().catch(() => { });
+      if (score > highscore) { highscore = score; highscoreEl.textContent = highscore; }
+      startMenu.style.display = 'flex';
+      hud.style.display = 'none';
+    }
+
+    let mouseX = canvas.width / 2, mouseY = canvas.height / 2;
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+    });
+
+    canvas.addEventListener('mousedown', () => {
+      if (!isGameRunning) return;
+      shootSfx.currentTime = 0; shootSfx.play().catch(() => { });
+      const cx = mouseX, cy = mouseY;
+      let hit = null; let hitDepth = Infinity;
+      for (const e of enemyList) {
+        if (!e.alive) continue;
+        const scale = getScale(e);
+        const r = 40 * scale;
+        const dx = e.x - cx; const dy = e.y - cy;
+        if (dx * dx + dy * dy <= r * r) {
+          if (e.z < hitDepth) { hit = e; hitDepth = e.z; }
+        }
+      }
+      if (!hit) { cycleBullet(); return; }
+      const currentPinyin = bulletOptions[currentBulletIndex];
+      if (currentPinyin && normalizePinyin(hit.pinyin) === normalizePinyin(currentPinyin)) {
+        hit.alive = false;
+        score += Math.round(10 * parseFloat(speedSlider.value));
+        const intervalsPassed = Math.floor(score / 100);
+        spawnInterval = Math.max(minSpawnInterval, baseSpawnInterval - intervalsPassed * 200);
+        updateHUD();
+      }
+    });
+
+    function normalizePinyin(p) {
+      return (p || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function gameLoop(timestamp) {
+      if (!isGameRunning) return;
+      ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+      if (!waveActive && timestamp - lastSpawn > spawnInterval) { spawnWave(); lastSpawn = timestamp; }
+      enemyList.sort((a, b) => b.z - a.z);
+      const cx = canvas.width / 2, cy = canvas.height * 0.65;
+      for (const e of enemyList) {
+        if (!e.alive) continue;
+        const t = 1 - (e.z / e.zStart);
+        const homing = lerp(0.005, 0.06, t);
+        e.x += (cx - e.x) * homing;
+        e.y += (cy - e.y) * homing;
+        e.z -= 1.5 * e.speed;
+        if (e.z <= Z_HIT_THRESHOLD) {
+          e.alive = false;
+          lives -= 1; updateHUD();
+          if (lives <= 0) { endGame(); return; }
+        }
+        drawSlime(e);
+      }
+      enemyList = enemyList.filter(e => e.alive);
+      if (enemyList.length === 0) { waveActive = false; }
+      drawGun();
+      drawCrosshair();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function getScale(e) {
+      const t = 1 - (e.z / e.zStart);
+      return lerp(0.25, 1.6, Math.max(0, Math.min(1, t)));
+    }
+
+    function drawSlime(e) {
+      const scale = getScale(e);
+      const sw = 120 * scale, sh = 120 * scale;
+      ctx.drawImage(slimeImg, e.x - sw / 2, e.y - sh / 2, sw, sh);
+      ctx.font = `${Math.floor(28 * scale)}px sans-serif`;
+      ctx.lineWidth = Math.max(2, 5 * scale);
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillStyle = '#d7ffd9';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.strokeText(e.hanzi, e.x, e.y - sh * 0.45);
+      ctx.fillText(e.hanzi, e.x, e.y - sh * 0.45);
+    }
+
+    function drawGun() {
+      const w = canvas.width, h = canvas.height;
+      const gunW = Math.min(420, w * 0.33), gunH = Math.min(200, h * 0.28);
+      const x = w - gunW - 30, y = h - gunH - 10;
+      ctx.fillStyle = 'rgba(20,20,25,0.85)';
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(x, y, gunW, gunH, 18);
+      } else {
+        ctx.rect(x, y, gunW, gunH);
+      }
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(70,70,80,0.9)';
+      ctx.fillRect(x + gunW * 0.1, y + gunH * 0.38, gunW * 0.8, gunH * 0.12);
+      ctx.fillStyle = 'rgba(50,50,60,0.9)';
+      ctx.beginPath();
+      ctx.moveTo(x + gunW * 0.2, y + gunH * 0.6);
+      ctx.lineTo(x + gunW * 0.35, y + gunH * 0.6);
+      ctx.lineTo(x + gunW * 0.28, y + gunH * 0.95);
+      ctx.lineTo(x + gunW * 0.13, y + gunH * 0.95);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffefbf';
+      ctx.font = '24px Pirata One';
+      ctx.fillText(`Bullet: ${bulletOptions[currentBulletIndex] || '...'}`, x + 16, y + 36);
+    }
+
+    function drawCrosshair() {
+      ctx.save();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(mouseX - 10, mouseY);
+      ctx.lineTo(mouseX + 10, mouseY);
+      ctx.moveTo(mouseX, mouseY - 10);
+      ctx.lineTo(mouseX, mouseY + 10);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(mouseX, mouseY, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        if (r == null) r = 0;
+        if (w < 2 * r) r = w / 2;
+        if (h < 2 * r) r = h / 2;
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        this.closePath();
+        return this;
+      };
+    }
+  </script>
+</body>
+
+</html>

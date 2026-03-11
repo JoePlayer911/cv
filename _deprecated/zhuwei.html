@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Xingqiu's Novel Adventure 2</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pirata+One&display=swap');
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            color: #fff;
+            font-family: 'Pirata One', cursive;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            image-rendering: pixelated;
+        }
+        #intro-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url('./assets/the-crux-docks.jpg') no-repeat center center;
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 4;
+            color: #f5deb3;
+            font-family: 'Pirata One', cursive;
+            user-select: none;
+            cursor: pointer;
+            text-shadow: 3px 3px 6px black;
+        }
+        #intro-screen p {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+        #intro-screen h1 {
+            font-size: 60px;
+            margin-top: 20px;
+        }
+        #start-menu {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url('./assets/the-crux-docks.jpg') no-repeat center center;
+            background-size: cover;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3;
+        }
+        #start-menu h1 {
+            font-size: 64px;
+            color: #f5deb3;
+            text-shadow: 4px 4px #000;
+            margin-bottom: 20px;
+        }
+        #start-menu h2 {
+            font-size: 32px;
+            color: #ffecb3;
+            margin-bottom: 20px;
+            text-shadow: 4px 4px #000;
+        }
+        #start-menu select, #start-menu input[type=range], #start-menu button {
+            font-size: 24px;
+            margin: 10px;
+            padding: 10px 20px;
+            border: 2px solid #8b5e3c;
+            background: #deb887;
+            color: #3e2723;
+            border-radius: 12px;
+            font-family: 'Pirata One', cursive;
+            transition: background-color 0.3s ease;
+        }
+        #start-menu button:hover {
+            background: #d2a679;
+            cursor: pointer;
+        }
+        #ui-container {
+            position: absolute;
+            top: 10px; left: 10px;
+            z-index: 2;
+            display: none;
+            font-family: sans-serif;
+            font-size: 24px;
+            user-select: none;
+        }
+        #input-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            align-items: center;
+        }
+        #input-box {
+            font-size: 24px;
+            padding: 10px;
+        }
+        #send-btn {
+            font-size: 24px;
+            padding: 10px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+    <div id="intro-screen">
+        <h1>Xingqiu's Novel Adventure 2</h1>
+        <p>Press anywhere to start</p>
+    </div>
+
+    <div id="start-menu">
+        <h1>Xingqiu's Novel Adventure 2</h1>
+        <h2>Highscore: <span id="highscore">0</span></h2>
+        <label for="level-select">Select Level:</label>
+        <select id="level-select">
+            <option value="1wOdT3XP0XFnD4OHEjOwvMhk4pKqRAU3TZ9sHzKuJFkU">HSK 1</option>
+            <option value="1F4-cr9gya_fc8N-MlcwngH9oAwXLVbq-Cqcljww522k">HSK 2</option>
+            <option value="18qSMMc3F8NXKWOEFAflddZYYP-swUkqgziX0RRtioYk">HSK 3</option>
+            <option value="1xSrE6yfKhaOhhKn1uoy8M0oi1rdvsqlLlLLLccuiTTQ">HSK 4</option>
+            <option value="1tL5c0P0iNlx-lBSuI3P_4Nwr5R39pD505G4P6ekMR58">HSK 5</option>
+            <option value="1w_nu8tAJ6Gqts7gHyeL79e6LYPfQaVfUkMkY2MbeOdI">Jojo's Level</option>
+            <option value="1oqlPUsDEycp76MGtygF_DveosgPDMC96WYZpy3SBhQg">English Level</option>
+            <option value="1At2i2SRUNLiJXpF2hYP1HoSFMmVjEc9l9ptZNQwYp3M">Indonesia Level</option>
+        </select>
+        <br />
+
+        <label for="control-select">Control Type:</label>
+        <select id="control-select">
+            <option value="keyboard">Keyboard (WASD + Space)</option>
+            <option value="mouse">Mouse (Move + LMB)</option>
+        </select>
+        <br />
+        <button id="start-btn">Embark Adventure</button>
+    </div>
+
+    <div id="ui-container">
+        <div>Score: <span id="score">0</span></div>
+    </div>
+
+    <div id="input-container">
+        <input type="text" id="input-box" placeholder="Type here" autofocus />
+        <button id="send-btn">Send</button>
+    </div>
+
+<script>
+let canvas = document.getElementById('gameCanvas');
+let ctx = canvas.getContext('2d');
+let controlType = 'keyboard';
+
+// === IMAGES ===
+const background = new Image();
+background.src = './assets/the-crux.jpg';
+
+const sprite = new Image();
+sprite.src = './assets/combined.png';
+
+const slimeImg = new Image();
+slimeImg.src = './assets/slime.png';
+
+// === AUDIO ===
+const startMusic = new Audio('./assets/a-day-in-mondstadt.mp3');
+startMusic.loop = true;
+
+const gameMusic = new Audio('./assets/flows-of-jade-like-water.mp3');
+gameMusic.loop = true;
+
+const slashSound = new Audio('./assets/slash.mp3');
+
+// === PLAYER ===
+const frameWidth = 64;
+const frameHeight = 64;
+const displayScale = 3;
+
+const player = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    speed: 5,
+    moving: { up: false, down: false, left: false, right: false },
+    facing: 'left',
+    attacking: false
+};
+
+// === ENEMIES ===
+let enemies = [];
+let enemyVocab = [];
+let baseSpawnInterval = 10;
+let spawnInterval = baseSpawnInterval;
+let lastSpawn = 0;
+
+// === GAME STATE ===
+let score = 0;
+let highscore = 0;
+let isGameRunning = false;
+let targetEnemy = null;
+let timer = 60;
+let lastTimerUpdate = 0;
+
+// === MOUSE CONTROL ===
+let mouseX = player.x;
+let mouseY = player.y;
+let mouseDown = false;
+
+// === DISABLE FULLSCREEN EXIT AND ZOOM ===
+canvas.addEventListener('dblclick', e => e.preventDefault());
+canvas.addEventListener('wheel', e => e.preventDefault(), { passive: false });
+
+// === FETCH VOCABULARY ===
+async function fetchVocabulary() {
+    const spreadsheetId = document.getElementById('level-select').value;
+    const apiKey = 'atob("QUl6YVN5QkE3S0M2VXZ3enY1SHBObklHQWV0YjdYUndwa1paTURN")';
+    const range = 'vocabs!A2:D';
+    try {
+        const response = await axios.get(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?key=${apiKey}`);
+        enemyVocab = response.data.values.map(row => ({ hanzi: row[0], pinyin: row[1] || "" }));
+        startGameLoop();
+    } catch (error) {
+        console.error('Error fetching vocabulary:', error);
+    }
+}
+
+// === ENEMY SPAWN ===
+function spawnEnemy() {
+    const vocab = enemyVocab[Math.floor(Math.random() * enemyVocab.length)];
+    const enemy = {
+        x: Math.random() * (canvas.width - 120),
+        y: Math.random() * (canvas.height - 120),
+        hanzi: vocab.hanzi,
+        pinyin: vocab.pinyin,
+        alive: true,
+        dirX: Math.random() < 0.5 ? -1 : 1,
+        dirY: Math.random() < 0.5 ? -1 : 1,
+        speed: 1 + Math.random() * 1.5
+    };
+    enemies.push(enemy);
+    if (!targetEnemy) targetEnemy = enemy;
+}
+
+function updateTarget() {
+    const aliveEnemies = enemies.filter(e => e.alive);
+    targetEnemy = aliveEnemies.length ? aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)] : null;
+}
+
+// === ATTACK FUNCTION ===
+function attack() {
+    slashSound.play();
+    if (targetEnemy && targetEnemy.alive) {
+        const dx = targetEnemy.x - player.x;
+        const dy = targetEnemy.y - player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+            targetEnemy.alive = false;
+            score += 10;
+            timer += 1;
+            document.getElementById('score').textContent = score;
+            updateTarget();
+        }
+    }
+}
+
+// === INPUT HANDLING ===
+window.addEventListener('keydown', e => {
+    if (e.key === 'w') player.moving.up = true;
+    if (e.key === 's') player.moving.down = true;
+    if (e.key === 'a') { player.moving.left = true; player.facing = 'left'; }
+    if (e.key === 'd') { player.moving.right = true; player.facing = 'right'; }
+});
+window.addEventListener('keyup', e => {
+    if (e.key === 'w') player.moving.up = false;
+    if (e.key === 's') player.moving.down = false;
+    if (e.key === 'a') player.moving.left = false;
+    if (e.key === 'd') player.moving.right = false;
+});
+
+// === GAME LOOP ===
+function gameLoop(timestamp) {
+    if (!isGameRunning) return;
+
+    // TIMER
+    if (!lastTimerUpdate) lastTimerUpdate = timestamp;
+    const delta = (timestamp - lastTimerUpdate) / 1000;
+    if (delta >= 1) { timer -= Math.floor(delta); lastTimerUpdate = timestamp; }
+    if (timer <= 0) { isGameRunning = false; alert(`Time's up! Your score: ${score}`); return; }
+
+    ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+
+    // PLAYER MOVEMENT
+    if (controlType === 'keyboard') {
+        if (player.moving.up) player.y -= player.speed;
+        if (player.moving.down) player.y += player.speed;
+        if (player.moving.left) player.x -= player.speed;
+        if (player.moving.right) player.x += player.speed;
+    } else if (controlType === 'mouse') {
+        const dx = mouseX - player.x;
+        const dy = mouseY - player.y;
+        player.x += dx * 0.2;
+        player.y += dy * 0.2;
+    }
+
+    // CLAMP PLAYER
+    player.x = Math.max(0, Math.min(player.x, canvas.width - frameWidth * displayScale));
+    player.y = Math.max(0, Math.min(player.y, canvas.height - frameHeight * displayScale));
+
+    // AUTO ATTACK
+    if (targetEnemy && targetEnemy.alive) {
+        const dx = targetEnemy.x - player.x;
+        const dy = targetEnemy.y - player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+            attack();
+        }
+    } else {
+        updateTarget();
+    }
+
+    // DRAW PLAYER
+    ctx.save();
+    if (player.facing === 'right') {
+        ctx.translate(player.x + frameWidth * displayScale, player.y);
+        ctx.scale(-1, 1);
+        ctx.drawImage(sprite, 0, 0, frameWidth, frameHeight, 0, 0, frameWidth * displayScale, frameHeight * displayScale);
+    } else {
+        ctx.drawImage(sprite, 0, 0, frameWidth, frameHeight, player.x, player.y, frameWidth * displayScale, frameHeight * displayScale);
+    }
+    ctx.restore();
+
+    // ENEMIES
+    enemies.forEach(enemy => {
+        if (!enemy.alive) return;
+        enemy.x += enemy.dirX * enemy.speed;
+        enemy.y += enemy.dirY * enemy.speed;
+        if (enemy.x < 0 || enemy.x > canvas.width - 120) enemy.dirX *= -1;
+        if (enemy.y < 0 || enemy.y > canvas.height - 120) enemy.dirY *= -1;
+        ctx.drawImage(slimeImg, enemy.x, enemy.y, 120, 120);
+        ctx.font = "32px sans-serif";
+        ctx.strokeStyle = "black"; ctx.lineWidth = 4; ctx.strokeText(enemy.hanzi, enemy.x + 30, enemy.y + 60);
+        ctx.fillStyle = "white"; ctx.fillText(enemy.hanzi, enemy.x + 30, enemy.y + 60);
+    });
+
+    // PINYIN
+    if (targetEnemy && targetEnemy.alive) {
+        const text = targetEnemy.pinyin;
+        ctx.font = "32px sans-serif";
+        ctx.textAlign = "center";
+        const metrics = ctx.measureText(text);
+        const padding = 10;
+        const x = canvas.width / 2;
+        const y = canvas.height - 50;
+        ctx.fillStyle = "black"; ctx.fillRect(x - metrics.width / 2 - padding, y - 32, metrics.width + padding * 2, 40);
+        ctx.fillStyle = "yellow"; ctx.fillText(text, x, y);
+    } else updateTarget();
+
+    // SPAWN ENEMIES
+    const aliveEnemies = enemies.filter(e => e.alive);
+    if (aliveEnemies.length < 5 && timestamp - lastSpawn > spawnInterval) {
+        spawnEnemy(); lastSpawn = timestamp;
+    }
+
+    // TIMER DISPLAY
+    ctx.font = "28px sans-serif"; ctx.fillStyle = "lime";
+    ctx.fillText(`Time: ${timer}s`, canvas.width - 180, 40);
+
+    requestAnimationFrame(gameLoop);
+}
+
+function startGameLoop() {
+    lastSpawn = performance.now();
+    lastTimerUpdate = 0;
+    timer = 60;
+    requestAnimationFrame(gameLoop);
+}
+
+// === START MENU ===
+const introScreen = document.getElementById('intro-screen');
+const startMenu = document.getElementById('start-menu');
+const startBtn = document.getElementById('start-btn');
+const uiContainer = document.getElementById('ui-container');
+
+// START MUSIC ON INTRO SCREEN
+introScreen.addEventListener('click', () => {
+    introScreen.style.display = 'none';
+    startMenu.style.display = 'flex';
+    startMusic.play().catch(err => console.log("Start music blocked:", err));
+});
+
+// START GAME
+startBtn.addEventListener('click', () => {
+    startMenu.style.display = 'none';
+    uiContainer.style.display = 'block';
+    score = 0; document.getElementById('score').textContent = score;
+    isGameRunning = true;
+    controlType = document.getElementById('control-select').value;
+
+    // STOP MENU MUSIC & START GAME MUSIC
+    startMusic.pause(); startMusic.currentTime = 0;
+    gameMusic.play().catch(err => console.log("Game music blocked:", err));
+
+    // MOUSE CONTROLS
+    if (controlType === 'mouse') {
+        window.addEventListener('mousemove', e => {
+            mouseX = e.clientX - canvas.getBoundingClientRect().left - (frameWidth * displayScale / 2);
+            mouseY = e.clientY - canvas.getBoundingClientRect().top - (frameHeight * displayScale / 2);
+        });
+        window.addEventListener('mousedown', e => { if (e.button === 0) mouseDown = true; });
+        window.addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; });
+    }
+
+    fetchVocabulary();
+});
+</script>
+</body>
+</html>

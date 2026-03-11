@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mandarin — Fill-in-the-Blank (LLM7)</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#06b6d4; --success:#16a34a; --danger:#ef4444; --muted:#94a3b8;
+      --card-pad:18px;
+    }
+    *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#071028 0%, #071022 60%);color:#e6eef6;padding:28px;display:flex;align-items:flex-start;justify-content:center;}
+    .wrap{width:880px;max-width:96%;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:20px;box-shadow:0 8px 30px rgba(2,6,23,0.6);}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+    header h1{margin:0;font-size:20px;letter-spacing:0.2px}
+    .row{display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+    label{font-size:13px;color:var(--muted)}
+    input[type="text"], select{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    button{background:var(--accent);color:#021024;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+    #quiz{margin-top:8px;padding:var(--card-pad);background:rgba(255,255,255,0.02);border-radius:10px;min-height:160px}
+    .question{font-size:22px;margin-bottom:16px}
+    .choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .choice{padding:12px;border-radius:8px;background:rgba(255,255,255,0.02);cursor:pointer;border:1px solid rgba(255,255,255,0.03)}
+    .choice.correct{border-color:rgba(22,163,74,0.9);background:linear-gradient(90deg, rgba(22,163,74,0.06), rgba(22,163,74,0.02))}
+    .choice.wrong{border-color:rgba(239,68,68,0.9);background:linear-gradient(90deg, rgba(239,68,68,0.04), rgba(239,68,68,0.01))}
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:var(--muted);font-size:13px}
+    .small{font-size:13px;color:var(--muted)}
+    .hint{margin-top:10px;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Mandarin — Fill-in-the-Blank (LLM-driven)</h1>
+      <div class="small">Streak: <strong id="streak">0</strong></div>
+    </header>
+
+    <div class="row">
+      <div>
+        <label for="save-code">Save Code</label><br>
+        <input id="save-code" placeholder="Enter or create code" />
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <button onclick="saveProgress()">Save</button>
+        <button class="ghost" onclick="loadProgress()">Load</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="level-select">Select Level</label><br>
+        <select id="level-select" onchange="fetchVocabulary()">
+              <option value="1wOdT3XP0XFnD4OHEjOwvMhk4pKqRAU3TZ9sHzKuJFkU">HSK 1</option>
+              <option value="1F4-cr9gya_fc8N-MlcwngH9oAwXLVbq-Cqcljww522k">HSK 2</option>
+              <option value="18qSMMc3F8NXKWOEFAflddZYYP-swUkqgziX0RRtioYk">HSK 3</option>
+              <option value="1xSrE6yfKhaOhhKn1uoy8M0oi1rdvsqlLlLLLccuiTTQ">HSK 4</option>
+              <option value="1tL5c0P0iNlx-lBSuI3P_4Nwr5R39pD505G4P6ekMR58">HSK 5</option>
+              <option value="1w_nu8tAJ6Gqts7gHyeL79e6LYPfQaVfUkMkY2MbeOdI">Jojo's Level</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="llm7-key">LLM7 Token (optional)</label><br>
+        <input id="llm7-key" placeholder='Leave blank to use "unused" (low rate limit)' />
+      </div>
+    </div>
+
+    <div id="quiz">
+      <div id="loading" class="small">Loading vocabulary...</div>
+      <div id="question-area" style="display:none;">
+        <div class="question" id="question-text">...</div>
+        <div class="choices" id="choices"></div>
+        <div class="meta">
+          <div id="source" class="small"></div>
+          <div>
+            <button class="ghost" id="next-btn" onclick="loadQuestion()" style="display:none">Next</button>
+          </div>
+        </div>
+        <div class="hint" id="hint"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;color:var(--muted);font-size:13px;">
+      Notes:
+      <ul>
+        <li>LLM7 endpoint used: <code>https://api.llm7.io/v1/chat/completions</code>. (You can use <code>api-key: "unused"</code> or a token from <code>token.llm7.io</code>.)</li>
+      </ul>
+    </div>
+  </div>
+
+<script>
+
+const range = 'vocabs!A2:D'; // expected columns: vocab, pinyin, meaning, pass
+let vocabulary = [];
+let currentQuestion = null;
+let streak = 0;
+let lastVocab = null;
+
+// utility: shuffle copy
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length -1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function updateStreakDisplay() {
+  document.getElementById('streak').textContent = streak;
+}
+
+async function fetchVocabulary() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('question-area').style.display = 'none';
+  vocabulary = [];
+  const spreadsheetId = document.getElementById('level-select').value;
+  const gapiKey = "atob("QUl6YVN5QkE3S0M2VXZ3enY1SHBObklHQWV0YjdYUndwa1paTURN")";
+  if (!gapiKey) {
+    alert('Please provide Google Sheets API key in the "Google Sheets API Key" box (or set it in code).');
+    document.getElementById('loading').textContent = 'Missing Google Sheets API key.';
+    return;
+  }
+
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${encodeURIComponent(gapiKey)}`;
+    const res = await axios.get(url);
+    const rows = res.data.values || [];
+    vocabulary = rows.map(row => ({
+      vocab: row[0] || '',
+      pinyin: row[1] || '',
+      meaning: row[2] || '',
+      pass: parseInt(row[3]) || 0
+    })).filter(v => v.vocab);
+    updateStreakFromVocabulary();
+    document.getElementById('loading').style.display = 'none';
+    loadQuestion();
+  } catch (err) {
+    console.error('Fetch vocab error', err);
+    document.getElementById('loading').textContent = 'Failed to fetch vocabulary. Check console.';
+  }
+}
+
+function updateStreakFromVocabulary() {
+  streak = vocabulary.reduce((acc, v) => acc + (v.pass > 0 ? 1 : 0), 0);
+  updateStreakDisplay();
+}
+
+function pickRandomVocabAvoidRepeat() {
+  if (vocabulary.length === 0) return null;
+  if (vocabulary.length === 1) return vocabulary[0];
+  let picked;
+  let attempts = 0;
+  do {
+    picked = vocabulary[Math.floor(Math.random() * vocabulary.length)];
+    attempts++;
+  } while (picked === lastVocab && attempts < 10);
+  lastVocab = picked;
+  return picked;
+}
+
+async function loadQuestion() {
+  document.getElementById('hint').textContent = '';
+  document.getElementById('next-btn').style.display = 'none';
+  const container = document.getElementById('question-area');
+  container.style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('loading').textContent = 'Generating question...';
+
+  // pick answer & distractors
+  const answer = pickRandomVocabAvoidRepeat();
+  if (!answer) {
+    document.getElementById('loading').textContent = 'No vocabulary loaded.';
+    return;
+  }
+  const distractors = shuffle(vocabulary.filter(v=>v.vocab !== answer.vocab).map(v=>v.vocab)).slice(0,3);
+  const choices = shuffle([answer.vocab, ...distractors]);
+
+  // ask LLM7
+  const levelText = document.getElementById('level-select').options[document.getElementById('level-select').selectedIndex].text;
+  let questionText = await getLLM7Question(levelText, answer.vocab);
+
+  // fallback if LLM returns nothing useful
+  if (!questionText || questionText.trim().length === 0) {
+    questionText = `___ ${answer.meaning || ''}`.trim();
+    document.getElementById('hint').textContent = 'LLM did not return a bracketed question — showing fallback.';
+  }
+
+  currentQuestion = { answer: answer.vocab, choices, rawQuestionFromLLM: questionText };
+
+  renderQuestion(questionText, choices, answer);
+  document.getElementById('loading').style.display = 'none';
+  container.style.display = 'block';
+  document.getElementById('source').textContent = `From LLM7 — model request.`;
+}
+
+function renderQuestion(questionText, choices, answerObj) {
+  const qText = document.getElementById('question-text');
+  qText.textContent = questionText;
+
+  const choicesWrap = document.getElementById('choices');
+  choicesWrap.innerHTML = '';
+  const letters = ['a','b','c','d'];
+  choices.forEach((c, idx) => {
+    const div = document.createElement('div');
+    div.className = 'choice';
+    div.innerHTML = `<strong style="margin-right:8px">${letters[idx]}.</strong> ${c}`;
+    div.onclick = () => handleChoiceClick(div, c);
+    choicesWrap.appendChild(div);
+  });
+}
+
+function handleChoiceClick(el, selectedValue) {
+  // disable further clicks
+  const all = Array.from(document.querySelectorAll('.choice'));
+  all.forEach(x => x.onclick = null);
+
+  const correct = selectedValue === currentQuestion.answer;
+  if (correct) {
+    el.classList.add('correct');
+    streak++;
+    // increment pass for the vocab entry
+    const idx = vocabulary.findIndex(v => v.vocab === selectedValue);
+    if (idx !== -1) vocabulary[idx].pass = (vocabulary[idx].pass || 0) + 1;
+  } else {
+    el.classList.add('wrong');
+    streak = 0;
+    // reset pass on the one selected? we will reset the actual answer's pass
+    const answerItem = vocabulary.find(v => v.vocab === currentQuestion.answer);
+    if (answerItem) answerItem.pass = 0;
+    // also highlight the correct one
+    const correctElement = all.find(a => a.textContent.trim().endsWith(currentQuestion.answer));
+    if (correctElement) correctElement.classList.add('correct');
+  }
+
+  updateStreakDisplay();
+  document.getElementById('next-btn').style.display = 'inline-block';
+}
+
+// LLM7 call — returns the text inside the first [...] or whole text as fallback
+async function getLLM7Question(level, answer) {
+  // Build prompt exactly as requested
+  const payloadText = `I'm studying ${level}. Give me a sentence using ${answer}, replace ${answer} with ___. Put the Question in bracket []`;
+
+  // LLM7 token behavior:
+  // - If user leaves the LLM7 token input empty, we send api-key: "unused" (anonymous, low rate limit).
+  // - If you have a token (from token.llm7.io), paste it in the 'LLM7 Token' box.
+  const llmKeyInput = document.getElementById('llm7-key').value.trim();
+  const apiKeyHeader = llmKeyInput ? llmKeyInput : 'unused';
+
+  try {
+    const res = await axios.post('https://api.llm7.io/v1/chat/completions', {
+      model: "gpt-4o-mini-2024-07-18",            // change to a model name you prefer from llm7.io
+      messages: [{ role: "user", content: payloadText }],
+      temperature: 0.5,
+      max_tokens: 128
+    }, {
+      headers: {
+        // LLM7 normally expects an api-key header or similar. Many community usages use "api-key" or "Api-Key".
+        // We'll set "api-key" per community examples. If your token provider requires a different header, change it.
+        'api-key': apiKeyHeader,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+
+    // Typical OpenAI-compatible response shape:
+    const text = res?.data?.choices?.[0]?.message?.content || (typeof res.data === 'string' ? res.data : '');
+    if (!text) return '';
+
+    // extract first bracketed content
+    const m = text.match(/\[([^\]]+)\]/);
+    if (m) {
+      return m[1].trim();
+    }
+    // fallback: sometimes model responds with punctuation around bracket or newlines
+    // try a looser match
+    const m2 = text.match(/\[([\s\S]*?)\]/);
+    if (m2) return m2[1].trim();
+
+    // final fallback: return the whole trimmed content (but usually we want bracketed)
+    return text.trim();
+  } catch (err) {
+    console.error('LLM7 request failed', err);
+    document.getElementById('hint').textContent = 'LLM7 request failed — check console. Falling back to a simple blank.';
+    return '___';
+  }
+}
+
+/* Save/Load — assumes server endpoints:
+   POST /save  { save_code: "abc", progress: [{ vocab, pass }, ...] }
+   GET  /load/:code -> { progress: [...] }
+   Keep your existing server behavior; this matches your earlier project.
+*/
+function saveProgress() {
+  const code = document.getElementById('save-code').value.trim();
+  if (!code) return alert('Please enter a save code before saving.');
+  // compress progress to minimal data
+  const progressData = vocabulary.map(v => ({ vocab: v.vocab, pass: v.pass || 0 }));
+  axios.post('/save', { save_code: code, progress: progressData })
+    .then(() => alert('Progress saved.'))
+    .catch(err => {
+      console.error('Save failed', err);
+      alert('Failed to save progress (check server).');
+    });
+}
+
+function loadProgress() {
+  const code = document.getElementById('save-code').value.trim();
+  if (!code) return alert('Please enter a save code to load.');
+  axios.get(`/load/${encodeURIComponent(code)}`)
+    .then(res => {
+      const loaded = res.data.progress || [];
+      loaded.forEach(saved => {
+        const found = vocabulary.find(v => v.vocab === saved.vocab);
+        if (found) found.pass = saved.pass || 0;
+      });
+      updateStreakFromVocabulary();
+      alert('Progress loaded.');
+    })
+    .catch(err => {
+      console.error('Load failed', err);
+      alert('Failed to load progress.');
+    });
+}
+
+// initialize
+document.getElementById('next-btn').style.display = 'none';
+fetchVocabulary();
+
+</script>
+</body>
+</html>
