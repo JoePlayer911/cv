@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Memory Grid Speedrun</title>
+  <meta name="description" content="A timed daily-seeded memory-match game — flip cards to pair vocabulary with meanings, beat the clock, and climb today's shared leaderboard." />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="projects.css" />
+  <link rel="stylesheet" href="games.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet" />
+  <script src="shared.js" defer></script>
+  <script src="daily.js" defer></script>
+  <script type="module" src="firebase-client.js"></script>
+  <style>
+    /* ---------- Visually-hidden live region for screen readers ---------- */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ---------- Setup / results copy ---------- */
+    .setup-note,
+    .muted-note {
+      color: var(--clr-text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+      margin: 10px 0;
+    }
+
+    .game-actions,
+    .results-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .results-title {
+      font-family: 'Outfit', sans-serif;
+      text-align: center;
+      margin: 0 0 4px;
+      font-size: clamp(1.3rem, 4.5vw, 1.7rem);
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--clr-gold), var(--clr-success));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .leaderboard-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--clr-text-muted);
+      text-align: center;
+      margin: 20px 0 10px;
+    }
+
+    .leaderboard-title__level { color: var(--clr-accent-light); }
+
+    /* ---------- Memory grid ---------- */
+    .mem-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--cols, 4), 1fr);
+      gap: clamp(6px, 2vw, 12px);
+      margin: 6px 0 4px;
+    }
+
+    .mem-card {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      min-height: 44px;
+      min-width: 44px;
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      perspective: 900px;
+      -webkit-tap-highlight-color: transparent;
+      border-radius: var(--radius-md);
+    }
+
+    .mem-card:disabled { cursor: default; }
+
+    .mem-card__inner {
+      position: relative;
+      display: block;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .mem-card.is-flipped .mem-card__inner { transform: rotateY(180deg); }
+    .mem-card.is-mismatch .mem-card__inner { animation: shake 0.4s ease; }
+
+    .mem-card__face {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: var(--radius-md);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      padding: 6px;
+      overflow: hidden;
+      word-break: break-word;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+
+    .mem-card__face--back {
+      background: linear-gradient(135deg, var(--clr-bg-3), var(--clr-accent));
+      border: 1px solid var(--clr-border);
+      color: rgba(255 255 255 / 0.85);
+      font-size: clamp(1.2rem, 5vw, 1.7rem);
+    }
+
+    .mem-card__face--back::after { content: '?'; }
+
+    .mem-card__face--front {
+      background: var(--clr-surface-hover);
+      border: 1px solid var(--clr-accent);
+      color: var(--clr-text);
+      transform: rotateY(180deg);
+      font-size: clamp(0.68rem, 3.2vw, 0.95rem);
+    }
+
+    .mem-card.is-matched .mem-card__face--front {
+      background: rgba(34 197 94 / 0.18);
+      border-color: var(--clr-success);
+      color: var(--clr-success);
+      animation: pop 0.35s ease;
+      box-shadow: 0 0 18px var(--clr-success-glow);
+    }
+
+    .mem-card:focus-visible .mem-card__face {
+      outline: 3px solid var(--clr-accent);
+      outline-offset: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mem-card__inner { transition: none; }
+      .mem-card.is-mismatch .mem-card__inner { animation: none; }
+      .mem-card.is-matched .mem-card__face--front { animation: none; }
+    }
+  </style>
+</head>
+
+<body class="game-shell">
+  <nav class="back-nav"><a href="index.html" class="back-nav__link"><svg viewBox="0 0 24 24">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg> Home</a></nav>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <main class="game-wrap">
+    <header class="game-header">
+      <h1 class="game-header__title">Memory Grid Speedrun</h1>
+      <p class="game-header__subtitle">Flip, match, and beat the clock — everyone gets today's same board.</p>
+    </header>
+
+    <p class="sr-only" id="live-region" aria-live="polite"></p>
+
+    <!-- ---------- Setup screen ---------- -->
+    <section class="panel" id="setup-screen">
+      <div class="field-row">
+        <label for="level-select">Level</label>
+        <select id="level-select" class="select"></select>
+      </div>
+      <p class="setup-note" id="setup-best-note">Loading today's stats&hellip;</p>
+      <button class="btn btn--primary btn--block" id="play-btn" type="button">Play Today's Board</button>
+      <p class="setup-note">Match each word to its meaning as fast as you can — mistakes cost points. The board is identical for everyone today, so replay it as often as you like and race to the top of the leaderboard.</p>
+    </section>
+
+    <!-- ---------- Game screen ---------- -->
+    <section class="panel" id="game-screen" hidden>
+      <div class="hud">
+        <div class="hud__stat">
+          <span class="hud__stat-value" id="stat-timer">0.0s</span>
+          <span class="hud__stat-label">Time</span>
+        </div>
+        <div class="hud__stat hud__stat--gold">
+          <span class="hud__stat-value" id="stat-combo">0</span>
+          <span class="hud__stat-label">Combo</span>
+        </div>
+        <div class="hud__stat hud__stat--danger">
+          <span class="hud__stat-value" id="stat-mistakes">0</span>
+          <span class="hud__stat-label">Mistakes</span>
+        </div>
+        <div class="hud__stat">
+          <span class="hud__stat-value" id="stat-pairs">0/0</span>
+          <span class="hud__stat-label">Pairs</span>
+        </div>
+      </div>
+
+      <div class="mem-grid" id="mem-grid"></div>
+
+      <div class="game-actions">
+        <button class="btn btn--ghost btn--sm" id="restart-btn" type="button">Restart board</button>
+        <button class="btn btn--ghost btn--sm" id="change-level-btn" type="button">Change level</button>
+      </div>
+    </section>
+
+    <!-- ---------- Results screen ---------- -->
+    <section class="panel" id="results-screen" hidden>
+      <h2 class="results-title" id="results-title">Board Cleared!</h2>
+      <div class="hud">
+        <div class="hud__stat">
+          <span class="hud__stat-value" id="result-time">0.0s</span>
+          <span class="hud__stat-label">Time</span>
+        </div>
+        <div class="hud__stat hud__stat--danger">
+          <span class="hud__stat-value" id="result-mistakes">0</span>
+          <span class="hud__stat-label">Mistakes</span>
+        </div>
+        <div class="hud__stat hud__stat--gold">
+          <span class="hud__stat-value" id="result-score">0</span>
+          <span class="hud__stat-label">Score</span>
+        </div>
+      </div>
+      <p class="setup-note" id="best-note"></p>
+
+      <div class="results-actions">
+        <button class="btn btn--primary" id="play-again-btn" type="button">Play Again</button>
+        <button class="btn btn--ghost" id="results-change-level-btn" type="button">Change level</button>
+      </div>
+
+      <div id="leaderboard-section">
+        <h3 class="leaderboard-title">Today's Top 10 <span class="leaderboard-title__level" id="leaderboard-level-label"></span></h3>
+        <ol class="leaderboard-list" id="leaderboard-list"></ol>
+        <p class="muted-note" id="leaderboard-note" hidden></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      /* ================= DOM references ================= */
+      const setupScreen = document.getElementById('setup-screen');
+      const gameScreen = document.getElementById('game-screen');
+      const resultsScreen = document.getElementById('results-screen');
+
+      const levelSelect = document.getElementById('level-select');
+      const setupBestNote = document.getElementById('setup-best-note');
+      const playBtn = document.getElementById('play-btn');
+
+      const memGrid = document.getElementById('mem-grid');
+      const statTimer = document.getElementById('stat-timer');
+      const statCombo = document.getElementById('stat-combo');
+      const statMistakes = document.getElementById('stat-mistakes');
+      const statPairs = document.getElementById('stat-pairs');
+      const restartBtn = document.getElementById('restart-btn');
+      const changeLevelBtn = document.getElementById('change-level-btn');
+
+      const resultsTitle = document.getElementById('results-title');
+      const resultTime = document.getElementById('result-time');
+      const resultMistakes = document.getElementById('result-mistakes');
+      const resultScore = document.getElementById('result-score');
+      const bestNote = document.getElementById('best-note');
+      const playAgainBtn = document.getElementById('play-again-btn');
+      const resultsChangeLevelBtn = document.getElementById('results-change-level-btn');
+
+      const leaderboardList = document.getElementById('leaderboard-list');
+      const leaderboardNote = document.getElementById('leaderboard-note');
+      const leaderboardLevelLabel = document.getElementById('leaderboard-level-label');
+
+      const toastContainer = document.getElementById('toast-container');
+      const liveRegion = document.getElementById('live-region');
+
+      /* ================= Run state ================= */
+      let board = [];          // flat array of { id, pairId, face, text, state }
+      let cardEls = [];        // button elements, indexed to match `board`
+      let totalPairs = 0;
+      let matchedPairs = 0;
+      let mistakes = 0;
+      let combo = 0;
+      let flippedIndices = [];
+      let busy = false;
+      let startTime = null;
+      let timerHandle = null;
+      let currentLevelId = null;
+
+      /* ================= Small helpers ================= */
+      function announce(msg) { liveRegion.textContent = msg; }
+
+      function showToast(message, variant) {
+        const el = document.createElement('div');
+        el.className = 'toast' + (variant ? ` toast--${variant}` : '');
+        el.textContent = message;
+        toastContainer.appendChild(el);
+        setTimeout(() => el.remove(), 2600);
+      }
+
+      function getLevelLabel(id) {
+        const list = (typeof VOCAB_LEVELS !== 'undefined') ? VOCAB_LEVELS : [];
+        const found = list.find(l => l.id === id);
+        return found ? found.label : 'this level';
+      }
+
+      function computeColumns(cardCount) {
+        return cardCount <= 6 ? 3 : 4;
+      }
+
+      /* ---------- Firebase feature-detection wrapper ---------- */
+      function getFirebaseClient() {
+        return new Promise((resolve) => {
+          if (window.FirebaseClient) { resolve(window.FirebaseClient); return; }
+          const onReady = () => resolve(window.FirebaseClient || null);
+          window.addEventListener('firebase-client-ready', onReady, { once: true });
+          // Safety net in case the module failed to load at all.
+          setTimeout(() => {
+            window.removeEventListener('firebase-client-ready', onReady);
+            resolve(window.FirebaseClient || null);
+          }, 4000);
+        });
+      }
+
+      function ensureDisplayName() {
+        if (!window.FirebaseClient) return;
+        let name = window.FirebaseClient.getDisplayName();
+        if (!name) {
+          name = (prompt('Pick a nickname for the leaderboard (max 20 chars):', '') || '').trim().slice(0, 20);
+          if (name) window.FirebaseClient.setDisplayName(name);
+        }
+      }
+
+      /* ---------- Local "best score today" storage ---------- */
+      function bestKey(sheetId) {
+        return `memorygrid:${sheetId}:${todayKey()}:best`;
+      }
+
+      function getLocalBest(sheetId) {
+        try {
+          const raw = localStorage.getItem(bestKey(sheetId));
+          return raw ? JSON.parse(raw) : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function setLocalBest(sheetId, entry) {
+        try {
+          localStorage.setItem(bestKey(sheetId), JSON.stringify(entry));
+        } catch {
+          /* storage full/unavailable — best-score tracking is a nice-to-have */
+        }
+      }
+
+      function updateSetupBestNote() {
+        const sheetId = levelSelect.value;
+        const best = getLocalBest(sheetId);
+        setupBestNote.textContent = best
+          ? `Your best today on ${getLevelLabel(sheetId)}: ${best.score} pts (${(best.elapsedMs / 1000).toFixed(1)}s, ${best.mistakes} mistakes)`
+          : `No runs yet today on ${getLevelLabel(sheetId)} — be the first to set a score!`;
+      }
+
+      /* ================= Screen switching ================= */
+      function switchScreen(name) {
+        setupScreen.hidden = name !== 'setup';
+        gameScreen.hidden = name !== 'game';
+        resultsScreen.hidden = name !== 'results';
+        if (name !== 'game' && timerHandle) {
+          clearInterval(timerHandle);
+          timerHandle = null;
+        }
+      }
+
+      /* ================= Board building ================= */
+      function buildBoard(vocabList, sheetId) {
+        const shuffledPool = dailyShuffle(vocabList, sheetId + ':pool', new Date());
+        const pairCount = Math.min(8, shuffledPool.length);
+        if (pairCount < 2) return null;
+
+        const chosen = shuffledPool.slice(0, pairCount);
+        const cardArray = [];
+        chosen.forEach((item, i) => {
+          cardArray.push({ pairId: i, face: 'vocab', text: item.vocab, vocab: item.vocab, state: 'hidden' });
+          cardArray.push({ pairId: i, face: 'meaning', text: item.meaning, state: 'hidden' });
+        });
+
+        return dailyShuffle(cardArray, sheetId + ':layout', new Date())
+          .map((card, idx) => ({ ...card, id: idx }));
+      }
+
+      /* ================= Rendering ================= */
+      function renderGrid(newBoard) {
+        board = newBoard;
+        totalPairs = board.length / 2;
+        cardEls = new Array(board.length);
+
+        memGrid.style.setProperty('--cols', computeColumns(board.length));
+        memGrid.innerHTML = '';
+
+        const frag = document.createDocumentFragment();
+        board.forEach((card, idx) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'mem-card';
+          btn.dataset.index = String(idx);
+          btn.setAttribute('aria-label', `Card ${idx + 1} of ${board.length}, face down`);
+
+          const inner = document.createElement('span');
+          inner.className = 'mem-card__inner';
+
+          const back = document.createElement('span');
+          back.className = 'mem-card__face mem-card__face--back';
+          back.setAttribute('aria-hidden', 'true');
+
+          const front = document.createElement('span');
+          front.className = 'mem-card__face mem-card__face--front';
+
+          inner.appendChild(back);
+          inner.appendChild(front);
+          btn.appendChild(inner);
+          btn.addEventListener('click', () => onCardClick(idx));
+
+          cardEls[idx] = btn;
+          frag.appendChild(btn);
+        });
+        memGrid.appendChild(frag);
+      }
+
+      function updateCard(idx) {
+        const card = board[idx];
+        const el = cardEls[idx];
+        const front = el.querySelector('.mem-card__face--front');
+        const revealed = card.state === 'flipped' || card.state === 'matched';
+
+        el.classList.toggle('is-flipped', revealed);
+        el.classList.toggle('is-matched', card.state === 'matched');
+        el.disabled = card.state === 'matched';
+        front.textContent = revealed ? card.text : '';
+        el.setAttribute(
+          'aria-label',
+          revealed
+            ? `Card ${idx + 1} of ${board.length}, showing ${card.text}${card.state === 'matched' ? ', matched' : ''}`
+            : `Card ${idx + 1} of ${board.length}, face down`
+        );
+      }
+
+      function spawnScorePop(el, text) {
+        const pop = document.createElement('span');
+        pop.className = 'score-pop';
+        pop.textContent = text;
+        pop.style.left = '50%';
+        pop.style.top = '35%';
+        pop.style.transform = 'translate(-50%, -50%)';
+        el.appendChild(pop);
+        pop.addEventListener('animationend', () => pop.remove());
+        setTimeout(() => { if (pop.isConnected) pop.remove(); }, 1200); // safety net
+      }
+
+      function popTextForCombo(c) {
+        if (c <= 1) return 'Match!';
+        if (c === 2) return 'Nice x2!';
+        if (c === 3) return 'Great x3!';
+        if (c === 4) return 'Awesome x4!';
+        return `\u{1F525} x${c}`;
+      }
+
+      /* ================= HUD / timer ================= */
+      function updateHud() {
+        statCombo.textContent = String(combo);
+        statMistakes.textContent = String(mistakes);
+        statPairs.textContent = `${matchedPairs}/${totalPairs}`;
+      }
+
+      function startTimerTick() {
+        if (timerHandle) clearInterval(timerHandle);
+        timerHandle = setInterval(() => {
+          statTimer.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+        }, 100);
+      }
+
+      function resetRunState() {
+        matchedPairs = 0;
+        mistakes = 0;
+        combo = 0;
+        flippedIndices = [];
+        busy = false;
+        startTime = null;
+        if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
+        statTimer.textContent = '0.0s';
+        updateHud();
+      }
+
+      /* ================= Match logic ================= */
+      function onCardClick(idx) {
+        if (busy) return;
+        const card = board[idx];
+        if (!card || card.state !== 'hidden') return;
+
+        if (!startTime) {
+          startTime = Date.now();
+          startTimerTick();
+        }
+
+        card.state = 'flipped';
+        updateCard(idx);
+        flippedIndices.push(idx);
+
+        if (flippedIndices.length < 2) return;
+
+        busy = true;
+        const [a, b] = flippedIndices;
+        if (board[a].pairId === board[b].pairId) {
+          setTimeout(() => resolveMatch(a, b), 280);
+        } else {
+          cardEls[a].classList.add('is-mismatch');
+          cardEls[b].classList.add('is-mismatch');
+          setTimeout(() => resolveMismatch(a, b), 700);
+        }
+      }
+
+      function resolveMatch(a, b) {
+        board[a].state = 'matched';
+        board[b].state = 'matched';
+        updateCard(a);
+        updateCard(b);
+
+        matchedPairs++;
+        combo++;
+        const vocabCard = board[a].face === 'vocab' ? board[a] : board[b];
+        recordAnswer(currentLevelId, vocabCard.vocab, true);
+        spawnScorePop(cardEls[b], popTextForCombo(combo));
+        updateHud();
+        announce(`Match! ${matchedPairs} of ${totalPairs} pairs found.`);
+
+        flippedIndices = [];
+        busy = false;
+
+        if (matchedPairs === totalPairs) finishGame();
+      }
+
+      function resolveMismatch(a, b) {
+        cardEls[a].classList.remove('is-mismatch');
+        cardEls[b].classList.remove('is-mismatch');
+        board[a].state = 'hidden';
+        board[b].state = 'hidden';
+        updateCard(a);
+        updateCard(b);
+
+        mistakes++;
+        combo = 0;
+        updateHud();
+        announce('Not a match. Cards flipped back.');
+
+        flippedIndices = [];
+        busy = false;
+      }
+
+      /* ================= Completion / scoring ================= */
+      function finishGame() {
+        if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
+        const elapsedMs = Date.now() - startTime;
+        statTimer.textContent = (elapsedMs / 1000).toFixed(1) + 's';
+        const score = Math.max(0, 10000 - Math.floor(elapsedMs / 100) - mistakes * 50);
+        announce(`Board cleared in ${(elapsedMs / 1000).toFixed(1)} seconds with ${mistakes} mistakes. Score ${score}.`);
+        showResults({ elapsedMs, mistakes, score });
+      }
+
+      async function maybeSubmitScore(sheetId, payload) {
+        const fc = await getFirebaseClient();
+        if (!fc || !fc.isConfigured) return;
+        ensureDisplayName();
+        try {
+          await fc.submitScore('memorygrid', {
+            score: payload.score,
+            meta: { level: sheetId, elapsedMs: payload.elapsedMs, mistakes: payload.mistakes },
+            period: todayKey(),
+          });
+        } catch (err) {
+          console.error('[memorygrid] submitScore failed:', err);
+        }
+      }
+
+      async function refreshLeaderboard(sheetId) {
+        leaderboardLevelLabel.textContent = `— ${getLevelLabel(sheetId)}`;
+
+        const fc = await getFirebaseClient();
+        if (!fc || !fc.isConfigured) {
+          leaderboardList.hidden = true;
+          leaderboardNote.hidden = false;
+          leaderboardNote.textContent = "Leaderboards aren't available right now — your best score is still saved locally so you can try to beat it.";
+          return;
+        }
+
+        leaderboardList.hidden = false;
+        leaderboardNote.hidden = true;
+        leaderboardList.innerHTML = '<li class="leaderboard-row"><span class="leaderboard-row__name">Loading&hellip;</span></li>';
+
+        try {
+          const [rows, uid] = await Promise.all([
+            fc.getLeaderboard('memorygrid', { period: todayKey(), top: 10 }),
+            fc.currentUid(),
+          ]);
+
+          if (!rows || !rows.length) {
+            leaderboardList.innerHTML = '<li class="leaderboard-row"><span class="leaderboard-row__name">No scores yet today — be the first!</span></li>';
+            return;
+          }
+
+          leaderboardList.innerHTML = rows.map((row, i) => {
+            const isMe = Boolean(uid) && row.uid === uid;
+            return `<li class="leaderboard-row${isMe ? ' leaderboard-row--me' : ''}">
+              <span class="leaderboard-row__rank">${i + 1}</span>
+              <span class="leaderboard-row__name">${escapeHtml(row.name || 'Anonymous')}</span>
+              <span class="leaderboard-row__score">${Number(row.score) || 0}</span>
+            </li>`;
+          }).join('');
+        } catch (err) {
+          console.error('[memorygrid] leaderboard fetch failed:', err);
+          leaderboardList.hidden = true;
+          leaderboardNote.hidden = false;
+          leaderboardNote.textContent = 'Could not load the leaderboard right now. Please try again later.';
+        }
+      }
+
+      async function showResults({ elapsedMs, mistakes: mistakeCount, score }) {
+        const sheetId = currentLevelId;
+        resultTime.textContent = (elapsedMs / 1000).toFixed(1) + 's';
+        resultMistakes.textContent = String(mistakeCount);
+        resultScore.textContent = String(score);
+
+        const prevBest = getLocalBest(sheetId);
+        const isNewBest = !prevBest || score > prevBest.score;
+
+        if (isNewBest) {
+          setLocalBest(sheetId, { score, elapsedMs, mistakes: mistakeCount, ts: Date.now() });
+          resultsTitle.textContent = 'New Personal Best!';
+          bestNote.innerHTML = '<span class="badge">\u{1F3C6} New Best Today</span>';
+          showToast('New personal best for today!', 'success');
+        } else {
+          resultsTitle.textContent = 'Board Cleared!';
+          bestNote.textContent = `Your best today: ${prevBest.score} pts (${(prevBest.elapsedMs / 1000).toFixed(1)}s, ${prevBest.mistakes} mistakes)`;
+        }
+
+        switchScreen('results');
+
+        if (isNewBest) {
+          await maybeSubmitScore(sheetId, { score, elapsedMs, mistakes: mistakeCount });
+        }
+        await refreshLeaderboard(sheetId);
+      }
+
+      /* ================= Starting / restarting a run ================= */
+      async function startGame(sheetId) {
+        playBtn.disabled = true;
+        playBtn.textContent = 'Loading…';
+        try {
+          const vocabList = await fetchVocabularyFromSheet(sheetId);
+          const newBoard = buildBoard(vocabList, sheetId);
+
+          if (!newBoard) {
+            showToast('This level does not have enough vocabulary to play yet.', 'danger');
+            return;
+          }
+
+          currentLevelId = sheetId;
+          resetRunState();
+          renderGrid(newBoard);
+          updateHud();
+          switchScreen('game');
+          announce(`Today's board loaded: ${newBoard.length / 2} pairs. Tap a card to begin.`);
+        } catch (err) {
+          console.error('[memorygrid] failed to start game:', err);
+          showToast('Something went wrong loading the board. Please try again.', 'danger');
+        } finally {
+          playBtn.disabled = false;
+          playBtn.textContent = "Play Today's Board";
+        }
+      }
+
+      /* ================= Wire up events ================= */
+      populateLevelSelect(levelSelect);
+      updateSetupBestNote();
+      levelSelect.addEventListener('change', updateSetupBestNote);
+
+      playBtn.addEventListener('click', () => startGame(levelSelect.value));
+      restartBtn.addEventListener('click', () => { if (currentLevelId) startGame(currentLevelId); });
+      changeLevelBtn.addEventListener('click', () => { updateSetupBestNote(); switchScreen('setup'); });
+      playAgainBtn.addEventListener('click', () => { if (currentLevelId) startGame(currentLevelId); });
+      resultsChangeLevelBtn.addEventListener('click', () => { updateSetupBestNote(); switchScreen('setup'); });
+
+      switchScreen('setup');
+    });
+  </script>
+</body>
+
+</html>

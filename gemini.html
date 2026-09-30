@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LLM7.io + Gemini TTS – Live2D Demo</title>
   <link rel="stylesheet" href="projects.css" />
+  <link rel="stylesheet" href="games.css" />
+  <script src="shared.js" defer></script>
+  <script src="keyvault.js" defer></script>
 
   <!-- ===== GLOBAL STYLES ===== -->
   <style>
@@ -387,6 +390,7 @@
       </label>
       <span>Enable ElevenLabs TTS</span>
     </div>
+    <div id="elevenKeyField" style="max-width:420px;margin:0 auto 8px;"></div>
     <div id="promptRow">
       <input type="text" id="textInput" placeholder="Type your prompt…">
       <button id="submitBtn" onclick="generateSpeech()">Submit</button>
@@ -400,6 +404,17 @@
   <script>
     /* ---------- Helpers ---------- */
     const isMobile = () => /Mobi|Android/i.test(navigator.userAgent);
+
+    /* Bring-your-own-key field for ElevenLabs — runs after shared.js/keyvault.js
+       (deferred) have executed, since this inline script itself runs earlier. */
+    document.addEventListener('DOMContentLoaded', () => {
+      renderKeyField(document.getElementById('elevenKeyField'), {
+        storageKey: 'elevenLabsApiKey',
+        label: 'ElevenLabs API key (optional)',
+        placeholder: 'Paste your own key to enable voice',
+        helpText: 'Stored only in your browser and sent straight to ElevenLabs — never to this site. Get a free key at elevenlabs.io, or leave blank to chat in text-only mode.',
+      });
+    });
 
     function toggleSettings() {
       document.getElementById('controls').classList.toggle('hidden-panel');
@@ -453,7 +468,7 @@
 
       conversationHistory.push({ role: 'user', content: input });
       const LLM7_URL = 'https://api.llm7.io/v1/chat/completions';
-      const ELEVENLABS_API_KEY = 'sk_016169a9acc02f2e8183a955aef6a280c0a366de314b8287';
+      const ELEVENLABS_API_KEY = getStoredKey('elevenLabsApiKey');
       const VOICE_ID = 'hpp4J3VqNfWAUOO0d1Us'; // Rachel or standard default voice
 
       try {
@@ -469,7 +484,9 @@
         responseText.textContent = llmText;
 
         const useTTS = document.getElementById('ttsToggle').checked;
-        if (useTTS) {
+        if (useTTS && !ELEVENLABS_API_KEY) {
+          alert('Paste your own ElevenLabs API key above to enable voice, or turn off "Enable ElevenLabs TTS" to chat in text-only mode.');
+        } else if (useTTS) {
           // Fetch ElevenLabs TTS response
           const ttsRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
             method: 'POST',

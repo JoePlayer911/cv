@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0b0705" />
+  <title>Vocab Royale: Survival Arena</title>
+  <link rel="stylesheet" href="projects.css" />
+  <link rel="stylesheet" href="games.css" />
+  <script src="shared.js" defer></script>
+  <script src="llm.js" defer></script>
+  <script type="module" src="firebase-client.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Inter:wght@400;600;700&display=swap');
+
+    :root {
+      --vr-fire-1: #f97316;
+      --vr-fire-2: #dc2626;
+      --vr-fire-glow: rgba(249, 115, 22, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b0705;
+      color: var(--clr-text, #e8edf5);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+
+    /* ---------- Canvas layer ---------- */
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      transition: transform 0.05s linear;
+    }
+
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      background: #000;
+    }
+
+    #score-pop-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .score-pop--big {
+      font-size: 1.7rem;
+      text-shadow: 0 0 14px var(--vr-fire-glow);
+    }
+
+    #wave-banner {
+      position: fixed;
+      top: 18%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 60;
+      pointer-events: none;
+      font-family: 'Russo One', 'Inter', sans-serif;
+      font-size: clamp(1.6rem, 6vw, 3rem);
+      background: linear-gradient(90deg, var(--vr-fire-1), var(--vr-fire-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      text-align: center;
+      width: 100%;
+      padding: 0 16px;
+    }
+
+    #wave-banner.show { animation: vrBannerFade 1.8s ease; }
+
+    @keyframes vrBannerFade {
+      0% { opacity: 0; transform: translate(-50%, -60%) scale(0.9); }
+      15% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+      25% { transform: translate(-50%, -50%) scale(1); }
+      80% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -45%) scale(1); }
+    }
+
+    /* ---------- Intro screen ---------- */
+    #intro-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 210;
+      background: url('./assets/the-crux-docks.jpg') no-repeat center center / cover;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      padding: 24px;
+      user-select: none;
+    }
+
+    #intro-screen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(6, 4, 2, 0.35), rgba(6, 4, 2, 0.8) 75%);
+    }
+
+    #intro-screen > * { position: relative; z-index: 1; }
+
+    #intro-screen h1 {
+      font-family: 'Russo One', 'Inter', sans-serif;
+      font-size: clamp(2rem, 8vw, 4rem);
+      margin: 0 0 10px;
+      background: linear-gradient(90deg, var(--vr-fire-1), var(--vr-fire-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+      letter-spacing: 0.03em;
+    }
+
+    #intro-screen p {
+      color: #ffd9b8;
+      font-size: 1.1rem;
+      margin: 0;
+      animation: vrIntroPulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes vrIntroPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+    /* ---------- Start menu ---------- */
+    #start-menu {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: url('./assets/the-crux-docks.jpg') no-repeat center center / cover;
+      display: none;
+      overflow-y: auto;
+      padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    }
+
+    #start-menu::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(6, 4, 2, 0.6), rgba(6, 4, 2, 0.88));
+      z-index: 0;
+    }
+
+    #start-menu .menu-inner {
+      position: relative;
+      z-index: 1;
+      width: min(480px, 100%);
+      margin: 24px auto;
+    }
+
+    .vr-title {
+      font-family: 'Russo One', 'Inter', sans-serif;
+      background: linear-gradient(90deg, var(--vr-fire-1), var(--vr-fire-2)) !important;
+      -webkit-background-clip: text !important;
+      background-clip: text !important;
+      color: transparent !important;
+    }
+
+    .vr-best {
+      text-align: center;
+      color: var(--clr-text-muted, #8fa4c4);
+      margin: 4px 0 18px;
+      font-size: 0.95rem;
+    }
+
+    .vr-best strong { color: var(--clr-gold, #f5c542); }
+
+    .vr-hint {
+      font-size: 0.85rem;
+      color: var(--clr-text-muted, #8fa4c4);
+      line-height: 1.5;
+      margin: 14px 0 18px;
+    }
+
+    .vr-panel-title {
+      margin: 0 0 12px;
+      font-family: 'Outfit', 'Inter', sans-serif;
+      font-size: 1.05rem;
+    }
+
+    .btn--fire {
+      background: linear-gradient(135deg, var(--vr-fire-1), var(--vr-fire-2));
+      color: #fff;
+      box-shadow: 0 6px 20px var(--vr-fire-glow);
+    }
+    .btn--fire:hover { box-shadow: 0 8px 26px var(--vr-fire-glow); }
+
+    /* ---------- HUD ---------- */
+    #hud-bar.hud {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top));
+      left: 0;
+      right: 0;
+      z-index: 70;
+      margin: 0;
+      padding: 0 12px;
+      display: none;
+      pointer-events: none;
+    }
+    #hud-bar .hud__stat { pointer-events: none; }
+
+    .low-lives {
+      --clr-accent-glow: rgba(239, 68, 68, 0.6);
+      animation: pulseGlow 1.1s ease-in-out infinite;
+    }
+
+    .combo-glow {
+      --clr-accent-glow: rgba(245, 197, 66, 0.65);
+      animation: pulseGlow 0.9s ease;
+    }
+
+    .pop-anim { animation: pop 0.3s ease; }
+    .input-shake { animation: shake 0.35s ease; }
+
+    @media (max-width: 420px) {
+      #hud-bar .hud__stat { min-width: 62px; padding: 6px 10px; }
+      #hud-bar .hud__stat-value { font-size: 1.05rem; }
+      #hud-bar .hud__stat-label { font-size: 0.6rem; }
+    }
+
+    /* ---------- Typing input ---------- */
+    #input-container {
+      position: fixed;
+      left: 50%;
+      bottom: max(16px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      z-index: 80;
+      display: none;
+      width: min(92vw, 560px);
+    }
+
+    #type-form { display: flex; gap: 8px; width: 100%; }
+    #input-box { flex: 1 1 auto; font-size: 16px; }
+    #send-btn { flex: 0 0 auto; }
+
+    /* ---------- Boss / game-over modals ---------- */
+    .vr-riddle {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--clr-border, rgba(255,255,255,0.1));
+      border-radius: var(--radius-md, 16px);
+      padding: 14px 16px;
+      margin: 12px 0 18px;
+      line-height: 1.55;
+      font-style: italic;
+      color: #ffd9b8;
+    }
+
+    .vr-final-stats {
+      text-align: center;
+      font-size: 1.05rem;
+      margin: 6px 0 16px;
+    }
+
+    #new-best-badge { margin-bottom: 12px; }
+
+    #boss-modal .modal, #gameover-modal .modal { text-align: center; }
+    #boss-hits-badge { margin-bottom: 6px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      #wave-banner.show, .pop-anim, .input-shake, .low-lives, .combo-glow, #intro-screen p {
+        animation: none !important;
+      }
+      #canvas-container { transition: none !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="back-nav back-nav--floating"><a href="index.html" class="back-nav__link"><svg viewBox="0 0 24 24">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg> Home</a></nav>
+
+  <div id="canvas-container">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+  <div id="score-pop-layer"></div>
+  <div id="wave-banner"></div>
+
+  <div id="intro-screen">
+    <h1>Vocab Royale</h1>
+    <p>Survival Arena — press anywhere to start</p>
+  </div>
+
+  <div id="start-menu">
+    <div class="menu-inner">
+      <div class="panel">
+        <div class="game-header">
+          <h1 class="game-header__title vr-title">Vocab Royale: Survival Arena</h1>
+          <p class="game-header__subtitle">Waves of enemies, AI-riddled bosses, and rising chaos.</p>
+        </div>
+        <p class="vr-best">Your Best — Wave <strong id="best-wave">—</strong> · Score <strong id="best-score">—</strong></p>
+
+        <div class="field-row">
+          <label for="level-select">Level</label>
+          <select id="level-select" class="select"></select>
+        </div>
+        <div class="field-row">
+          <label for="speed-slider">Speed <span id="speed-value">1</span>x</label>
+          <input type="range" id="speed-slider" min="0.2" max="2" step="0.1" value="1" />
+        </div>
+
+        <p class="vr-hint">
+          Type the word attached to an enemy and press Enter (or tap Attack) to strike it down.
+          Chain kills without losing a life to build your combo multiplier, up to 3x. Every 5th
+          wave summons a boss — solve its riddle and land 3 correct hits to bring it down. You
+          have 5 lives; don't let anything reach the center!
+        </p>
+
+        <button id="begin-btn" class="btn btn--fire btn--block">Begin Survival</button>
+      </div>
+
+      <div class="panel" id="menu-leaderboard-panel" style="display:none;">
+        <h3 class="vr-panel-title">🏆 Top Survivors (All-Time)</h3>
+        <ol class="leaderboard-list" id="menu-leaderboard-list"></ol>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud-bar" class="hud">
+    <div class="hud__stat" id="score-stat">
+      <span class="hud__stat-value" id="score-value">0</span>
+      <span class="hud__stat-label">Score</span>
+    </div>
+    <div class="hud__stat" id="wave-stat">
+      <span class="hud__stat-value" id="wave-value">1</span>
+      <span class="hud__stat-label">Wave</span>
+    </div>
+    <div class="hud__stat hud__stat--danger" id="lives-stat">
+      <span class="hud__stat-value" id="lives-value">5</span>
+      <span class="hud__stat-label">Lives</span>
+    </div>
+    <div class="hud__stat hud__stat--gold" id="combo-stat">
+      <span class="hud__stat-value" id="combo-value">1.0x</span>
+      <span class="hud__stat-label">Combo</span>
+    </div>
+  </div>
+
+  <div id="input-container">
+    <form id="type-form" autocomplete="off">
+      <input type="text" id="input-box" class="input" placeholder="Type the word…" autocomplete="off"
+        autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" disabled />
+      <button type="submit" id="send-btn" class="btn btn--fire">Attack</button>
+    </form>
+  </div>
+
+  <div id="boss-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+      <h2 class="modal__title" id="boss-modal-title">Boss Incoming!</h2>
+      <span class="badge" id="boss-hits-badge">Hits remaining: 3</span>
+      <p id="boss-riddle-text" class="vr-riddle">Summoning a riddle…</p>
+      <button id="boss-engage-btn" class="btn btn--fire btn--block" disabled>Engage!</button>
+    </div>
+  </div>
+
+  <div id="gameover-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+      <h2 class="modal__title">Run Complete</h2>
+      <span class="badge" id="new-best-badge" style="display:none;">🏅 New Best!</span>
+      <p class="vr-final-stats">Score: <strong id="final-score">0</strong> &nbsp;·&nbsp; Wave reached:
+        <strong id="final-wave">1</strong>
+      </p>
+      <div id="final-leaderboard-section" style="display:none;">
+        <h3 class="vr-panel-title">🏆 Top Survivors (All-Time)</h3>
+        <ol class="leaderboard-list" id="final-leaderboard-list"></ol>
+      </div>
+      <button id="restart-btn" class="btn btn--ghost btn--block">Back to Menu</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      /* ======================================================================
+         Vocab Royale: Survival Arena
+         A fast-paced canvas typing-survival game. Enemies carrying a vocab
+         word close in from every direction; the player types the word to
+         destroy it. Waves escalate, combos multiply score, and every 5th
+         wave summons a boss guarded by an AI-generated riddle.
+         ====================================================================== */
+
+      /* ---------- Constants ---------- */
+      const STARTING_LIVES = 5;
+      const KILLS_PER_WAVE = 15;
+      const BASE_SPAWN_INTERVAL = 1500;
+      const MIN_SPAWN_INTERVAL = 220;
+      const OFFSCREEN_SPEED_MULTIPLIER = 2;
+      const FRAME_W = 64, FRAME_H = 64, ATTACK_FRAMES = 6, FRAME_INTERVAL = 110;
+      const LOCAL_BEST_KEY = 'vocabRoyaleBest';
+      const GAME_ID = 'vocabroyale';
+      const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const LOCAL_FALLBACK_VOCAB = [
+        { vocab: '你好', pinyin: 'nǐ hǎo', meaning: 'hello' },
+        { vocab: '谢谢', pinyin: 'xiè xie', meaning: 'thank you' },
+        { vocab: '再见', pinyin: 'zài jiàn', meaning: 'goodbye' },
+        { vocab: '朋友', pinyin: 'péng yǒu', meaning: 'friend' },
+        { vocab: '学习', pinyin: 'xué xí', meaning: 'to study' },
+        { vocab: '水', pinyin: 'shuǐ', meaning: 'water' },
+        { vocab: '老师', pinyin: 'lǎo shī', meaning: 'teacher' },
+        { vocab: '书', pinyin: 'shū', meaning: 'book' },
+      ];
+
+      const FALLBACK_BOSS_RIDDLES = [
+        'I am the shape of an idea you already know. Find my name before I find you.',
+        'Say what I mean, not what I am, and I shall crumble. Well? Speak up!',
+        'Everyone who has ever needed me forgot my name at the worst possible time. Will you?',
+        'I linger just behind your tongue. Drag me out, typist, if you dare.',
+        'A word waits inside your memory like a coin under a couch cushion. Fetch it, quickly!',
+      ];
+
+      /* ---------- DOM refs ---------- */
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const canvasContainer = document.getElementById('canvas-container');
+      const scorePopLayer = document.getElementById('score-pop-layer');
+      const waveBanner = document.getElementById('wave-banner');
+
+      const introScreen = document.getElementById('intro-screen');
+      const startMenu = document.getElementById('start-menu');
+      const bestWaveEl = document.getElementById('best-wave');
+      const bestScoreEl = document.getElementById('best-score');
+      const levelSelect = document.getElementById('level-select');
+      const speedSlider = document.getElementById('speed-slider');
+      const speedValueEl = document.getElementById('speed-value');
+      const beginBtn = document.getElementById('begin-btn');
+      const menuLeaderboardPanel = document.getElementById('menu-leaderboard-panel');
+      const menuLeaderboardList = document.getElementById('menu-leaderboard-list');
+
+      const hudBar = document.getElementById('hud-bar');
+      const scoreValueEl = document.getElementById('score-value');
+      const waveValueEl = document.getElementById('wave-value');
+      const livesValueEl = document.getElementById('lives-value');
+      const comboValueEl = document.getElementById('combo-value');
+      const livesStatEl = document.getElementById('lives-stat');
+
+      const inputContainer = document.getElementById('input-container');
+      const typeForm = document.getElementById('type-form');
+      const inputBox = document.getElementById('input-box');
+
+      const bossModal = document.getElementById('boss-modal');
+      const bossModalTitle = document.getElementById('boss-modal-title');
+      const bossHitsBadge = document.getElementById('boss-hits-badge');
+      const bossRiddleText = document.getElementById('boss-riddle-text');
+      const bossEngageBtn = document.getElementById('boss-engage-btn');
+
+      const gameoverModal = document.getElementById('gameover-modal');
+      const newBestBadge = document.getElementById('new-best-badge');
+      const finalScoreEl = document.getElementById('final-score');
+      const finalWaveEl = document.getElementById('final-wave');
+      const finalLeaderboardSection = document.getElementById('final-leaderboard-section');
+      const finalLeaderboardList = document.getElementById('final-leaderboard-list');
+      const restartBtn = document.getElementById('restart-btn');
+
+      /* ---------- Assets ---------- */
+      const bgImage = new Image(); bgImage.src = './assets/the-crux.jpg';
+      const spriteImg = new Image(); spriteImg.src = './assets/combined.png';
+      const slimeImg = new Image(); slimeImg.src = './assets/slime.png';
+
+      const menuMusic = new Audio('./assets/a-day-in-mondstadt.mp3'); menuMusic.loop = true;
+      const battleMusic = new Audio('./assets/flows-of-jade-like-water.mp3'); battleMusic.loop = true;
+      const slashSfx = new Audio('./assets/slash.mp3');
+
+      /* ---------- Game state ---------- */
+      let sheetId = '';
+      let speedMultiplier = 1;
+      let vocabPool = [];
+      let enemies = [];
+      let effects = [];
+      let score = 0, lives = STARTING_LIVES, wave = 1, killsInWave = 0, totalKills = 0;
+      let comboMultiplier = 1;
+      let isGameRunning = false;
+      let paused = false;
+      let isBossActive = false;
+      let lastSpawn = 0;
+      let lastTimestamp = 0;
+      const player = { x: 0, y: 0 };
+      let playerDisplayScale = 3;
+
+      let animatingAttack = false, currentFrame = 0, frameTimer = 0;
+      const shake = { time: 0, intensity: 0 };
+
+      /* ---------- Helpers ---------- */
+      function safeHtml(s) {
+        try {
+          if (typeof escapeHtml === 'function') return escapeHtml(s);
+        } catch (err) { /* fall through to local escape */ }
+        return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      }
+
+      function getLocalBest() {
+        try {
+          const raw = localStorage.getItem(LOCAL_BEST_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (err) { return null; }
+      }
+
+      function setLocalBest(data) {
+        try { localStorage.setItem(LOCAL_BEST_KEY, JSON.stringify(data)); } catch (err) { /* storage unavailable */ }
+      }
+
+      function ensureDisplayName() {
+        if (!window.FirebaseClient) return;
+        let name = window.FirebaseClient.getDisplayName();
+        if (!name) {
+          name = (prompt('Pick a nickname for the leaderboard (max 20 chars):', '') || '').trim().slice(0, 20);
+          if (name) window.FirebaseClient.setDisplayName(name);
+        }
+      }
+
+      function renderLeaderboardInto(listEl, rows) {
+        if (!rows || !rows.length) {
+          listEl.innerHTML = '<li class="leaderboard-row"><span class="leaderboard-row__name">No runs yet — be the first!</span></li>';
+          return;
+        }
+        listEl.innerHTML = rows.map((row, i) => `
+          <li class="leaderboard-row">
+            <span class="leaderboard-row__rank">${i + 1}</span>
+            <span class="leaderboard-row__name">${safeHtml(row.name || 'Anonymous')}</span>
+            <span class="leaderboard-row__score">${Math.round(row.score || 0).toLocaleString()}</span>
+          </li>`).join('');
+      }
+
+      async function refreshMenuBestScore() {
+        const best = getLocalBest();
+        bestScoreEl.textContent = best ? Math.round(best.score).toLocaleString() : '—';
+        bestWaveEl.textContent = best ? best.wave : '—';
+      }
+
+      async function refreshMenuLeaderboard() {
+        if (!window.FirebaseClient || !window.FirebaseClient.isConfigured) {
+          menuLeaderboardPanel.style.display = 'none';
+          return;
+        }
+        menuLeaderboardPanel.style.display = 'block';
+        menuLeaderboardList.innerHTML = '<li class="leaderboard-row"><span class="leaderboard-row__name">Loading…</span></li>';
+        try {
+          const top = await window.FirebaseClient.getLeaderboard(GAME_ID, { period: 'alltime', top: 10 });
+          renderLeaderboardInto(menuLeaderboardList, top);
+        } catch (err) {
+          console.warn('[vocabroyale] menu leaderboard fetch failed:', err);
+          menuLeaderboardList.innerHTML = '<li class="leaderboard-row"><span class="leaderboard-row__name">Leaderboard unavailable.</span></li>';
+        }
+      }
+
+      function spawnScorePop(x, y, text, opts) {
+        opts = opts || {};
+        const el = document.createElement('div');
+        el.className = 'score-pop' + (opts.big ? ' score-pop--big' : '');
+        el.textContent = text;
+        el.style.left = Math.round(x) + 'px';
+        el.style.top = Math.round(y) + 'px';
+        scorePopLayer.appendChild(el);
+        const remove = () => { if (el.parentNode) el.parentNode.removeChild(el); };
+        el.addEventListener('animationend', remove);
+        setTimeout(remove, 1200);
+      }
+
+      function showWaveBanner(text) {
+        waveBanner.textContent = text;
+        waveBanner.classList.remove('show');
+        void waveBanner.offsetWidth; // force reflow so the animation restarts
+        waveBanner.classList.add('show');
+      }
+
+      function bumpClass(el, className) {
+        el.classList.remove(className);
+        void el.offsetWidth;
+        el.classList.add(className);
+      }
+
+      function triggerShake(intensity, durationMs) {
+        if (prefersReducedMotion) return;
+        shake.intensity = Math.max(shake.intensity, intensity);
+        shake.time = Math.max(shake.time, durationMs);
+      }
+
+      function playSlash() {
+        try {
+          slashSfx.currentTime = 0;
+          slashSfx.play().catch(err => console.warn('[vocabroyale] slash sfx blocked:', err));
+        } catch (err) { /* audio unavailable — never fatal */ }
+      }
+
+      /* ---------- Vocabulary ---------- */
+      async function loadVocabPool(id) {
+        try {
+          if (typeof fetchVocabularyFromSheet !== 'function') throw new Error('shared.js not loaded');
+          const data = await fetchVocabularyFromSheet(id);
+          return Array.isArray(data) && data.length ? data : LOCAL_FALLBACK_VOCAB;
+        } catch (err) {
+          console.error('[vocabroyale] Could not load vocabulary, using built-in fallback list:', err);
+          return LOCAL_FALLBACK_VOCAB;
+        }
+      }
+
+      function pickVocabItem(excludeVocab) {
+        if (!vocabPool.length) return { vocab: '?', pinyin: '', meaning: 'mystery' };
+        if (vocabPool.length === 1) return vocabPool[0];
+        let item, guard = 0;
+        do {
+          item = vocabPool[Math.floor(Math.random() * vocabPool.length)];
+          guard++;
+        } while (excludeVocab && item.vocab === excludeVocab && guard < 10);
+        return item;
+      }
+
+      /* ---------- Boss riddles ---------- */
+      function pickFallbackRiddle(boss) {
+        const base = FALLBACK_BOSS_RIDDLES[Math.floor(Math.random() * FALLBACK_BOSS_RIDDLES.length)];
+        return boss && boss.meaning ? `${base} (Hint: it means "${boss.meaning}".)` : base;
+      }
+
+      async function generateBossRiddle(boss) {
+        const fallback = pickFallbackRiddle(boss);
+        if (typeof callLlm !== 'function') return fallback;
+        try {
+          const text = await callLlm([
+            { role: 'system', content: 'You are a playful boss enemy in a language-learning arena game. Given a vocabulary word and its meaning, write a short (1-2 sentence) riddle in English that describes the MEANING without saying the word itself, ending with a taunt. Keep it fun and G-rated.' },
+            { role: 'user', content: `Word meaning: "${boss.meaning}". Write the riddle now.` },
+          ]);
+          return (text && text.trim()) ? text.trim() : fallback;
+        } catch (err) {
+          console.warn('[vocabroyale] Boss riddle generation failed, using fallback riddle:', err);
+          return fallback;
+        }
+      }
+
+      /* ---------- HUD ---------- */
+      function updateHud() {
+        scoreValueEl.textContent = Math.round(score).toLocaleString();
+        waveValueEl.textContent = wave;
+        livesValueEl.textContent = lives;
+        comboValueEl.textContent = comboMultiplier.toFixed(1) + 'x';
+        livesStatEl.classList.toggle('low-lives', lives > 0 && lives <= 2 && !prefersReducedMotion);
+      }
+
+      function bumpCombo() {
+        const old = comboMultiplier;
+        comboMultiplier = Math.min(3, +(comboMultiplier + 0.1).toFixed(2));
+        bumpClass(comboValueEl, 'pop-anim');
+        if (Math.round(old * 10) !== Math.round(comboMultiplier * 10) && Math.round(comboMultiplier * 10) % 5 === 0) {
+          spawnScorePop(player.x, player.y - 150, `COMBO x${comboMultiplier.toFixed(1)}!`, { big: true });
+          bumpClass(document.getElementById('combo-stat'), 'combo-glow');
+        }
+      }
+
+      /* ---------- Lives / game over ---------- */
+      function loseLife() {
+        lives = Math.max(0, lives - 1);
+        comboMultiplier = 1;
+        updateHud();
+        triggerShake(14, 320);
+        if (lives <= 0) endGame();
+      }
+
+      function endGame() {
+        isGameRunning = false;
+        paused = false;
+        try { battleMusic.pause(); } catch (err) { /* ignore */ }
+        try {
+          menuMusic.currentTime = 0;
+          menuMusic.play().catch(err => console.warn('[vocabroyale] menu music blocked:', err));
+        } catch (err) { /* ignore */ }
+
+        hudBar.style.display = 'none';
+        inputContainer.style.display = 'none';
+        inputBox.disabled = true;
+        inputBox.blur();
+
+        finalScoreEl.textContent = Math.round(score).toLocaleString();
+        finalWaveEl.textContent = wave;
+
+        const prevBest = getLocalBest();
+        const isNewBest = !prevBest || score > prevBest.score;
+        if (isNewBest) setLocalBest({ score, wave });
+        newBestBadge.style.display = isNewBest ? 'inline-flex' : 'none';
+
+        gameoverModal.style.display = 'flex';
+        submitAndShowFinalLeaderboard();
+      }
+
+      async function submitAndShowFinalLeaderboard() {
+        if (!window.FirebaseClient || !window.FirebaseClient.isConfigured) {
+          finalLeaderboardSection.style.display = 'none';
+          return;
+        }
+        finalLeaderboardSection.style.display = 'block';
+        finalLeaderboardList.innerHTML = '<li class="leaderboard-row"><span class="leaderboard-row__name">Loading…</span></li>';
+        try {
+          ensureDisplayName();
+          await window.FirebaseClient.submitScore(GAME_ID, { score, meta: { wave, level: sheetId }, period: 'alltime' });
+          const top = await window.FirebaseClient.getLeaderboard(GAME_ID, { period: 'alltime', top: 10 });
+          renderLeaderboardInto(finalLeaderboardList, top);
+        } catch (err) {
+          console.error('[vocabroyale] leaderboard submit/fetch failed:', err);
+          finalLeaderboardList.innerHTML = '<li class="leaderboard-row"><span class="leaderboard-row__name">Leaderboard unavailable right now.</span></li>';
+        }
+      }
+
+      /* ---------- Enemies ---------- */
+      function spawnEnemy() {
+        if (!vocabPool.length) return;
+        const item = pickVocabItem();
+        const angle = Math.random() * Math.PI * 2;
+        const spawnRadius = Math.max(canvas.width, canvas.height) * 0.62 + 60;
+        const x = player.x + Math.cos(angle) * spawnRadius;
+        const y = player.y + Math.sin(angle) * spawnRadius;
+        const waveSpeedBonus = Math.min(wave - 1, 20) * 0.035;
+        const speed = 0.55 + Math.random() * 0.35 + waveSpeedBonus;
+        enemies.push({
+          x, y, drawX: x, drawY: y,
+          vocab: item.vocab, pinyin: item.pinyin || '', meaning: item.meaning || '',
+          speed, alive: true, isBoss: false,
+          bobPhase: Math.random() * Math.PI * 2,
+        });
+      }
+
+      function createBossEnemy() {
+        const item = pickVocabItem();
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.max(canvas.width, canvas.height) * 0.5;
+        return {
+          x: player.x + Math.cos(angle) * r, y: player.y + Math.sin(angle) * r,
+          drawX: 0, drawY: 0, bobPhase: Math.random() * Math.PI * 2,
+          vocab: item.vocab, pinyin: item.pinyin || '', meaning: item.meaning || '',
+          speed: 0.35 + Math.random() * 0.1,
+          isBoss: true, alive: true, hitsRemaining: 3,
+        };
+      }
+
+      /**
+       * Distance from the player to the edge of the visible arena (plus a
+       * sprite-sized margin) in the direction of (dirX, dirY).
+       */
+      function distanceToScreenEdge(dirX, dirY) {
+        const margin = 60;
+        let t = Infinity;
+        if (dirX > 0) t = Math.min(t, (canvas.width + margin - player.x) / dirX);
+        if (dirX < 0) t = Math.min(t, (-margin - player.x) / dirX);
+        if (dirY > 0) t = Math.min(t, (canvas.height + margin - player.y) / dirY);
+        if (dirY < 0) t = Math.min(t, (-margin - player.y) / dirY);
+        return t;
+      }
+
+      /**
+       * Off-screen, enemies approach at a constant OFFSCREEN_SPEED_MULTIPLIER
+       * so nobody waits for slow slimes to show up. Once visible, the chosen
+       * speed multiplier fades in over the first half of the way to the player.
+       */
+      function effectiveMultiplier(dist, nx, ny) {
+        const edge = distanceToScreenEdge(-nx, -ny);
+        if (dist >= edge) return OFFSCREEN_SPEED_MULTIPLIER;
+        const t = Math.min(1, (edge - dist) / (edge * 0.5));
+        const eased = t * t * (3 - 2 * t);
+        return OFFSCREEN_SPEED_MULTIPLIER + (speedMultiplier - OFFSCREEN_SPEED_MULTIPLIER) * eased;
+      }
+
+      function updateEnemy(e, dtScale) {
+        const dx = player.x - e.x, dy = player.y - e.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const nx = dx / dist, ny = dy / dist;
+        const step = e.speed * effectiveMultiplier(dist, nx, ny) * dtScale * (e.isBoss ? 0.35 : 1);
+        e.x += nx * step;
+        e.y += ny * step;
+
+        e.bobPhase += 0.06 * dtScale;
+        const bob = Math.sin(e.bobPhase) * (e.isBoss ? 4 : 6);
+        e.drawX = e.x + (-ny) * bob;
+        e.drawY = e.y + (nx) * bob;
+
+        const hitRadius = e.isBoss ? 130 : 58;
+        if (dist < hitRadius) {
+          if (e.isBoss) {
+            loseLife();
+            const angle2 = Math.random() * Math.PI * 2;
+            const r2 = Math.max(canvas.width, canvas.height) * 0.55;
+            e.x = player.x + Math.cos(angle2) * r2;
+            e.y = player.y + Math.sin(angle2) * r2;
+          } else {
+            e.alive = false;
+            loseLife();
+          }
+        }
+      }
+
+      function drawBossHp(e) {
+        const pipCount = 3;
+        const total = pipCount * 26;
+        const startX = e.drawX - total / 2;
+        const y = e.drawY - 190;
+        for (let i = 0; i < pipCount; i++) {
+          ctx.beginPath();
+          ctx.arc(startX + i * 26 + 10, y, 9, 0, Math.PI * 2);
+          ctx.fillStyle = i < e.hitsRemaining ? '#ff5a3c' : 'rgba(255,255,255,0.15)';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+          ctx.stroke();
+        }
+      }
+
+      function drawEnemy(e, timestamp) {
+        const scale = e.isBoss ? (1 + Math.sin(timestamp / 400) * 0.05) : 1;
+        const size = (e.isBoss ? 260 : 120) * scale;
+        if (slimeImg.complete && slimeImg.naturalWidth) {
+          ctx.drawImage(slimeImg, e.drawX - size / 2, e.drawY - size / 2, size, size);
+        }
+        ctx.font = `${e.isBoss ? 34 : 26}px 'Russo One', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.lineWidth = e.isBoss ? 7 : 5;
+        ctx.strokeStyle = e.isBoss ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.6)';
+        ctx.fillStyle = e.isBoss ? '#ffe27a' : '#d7ffd9';
+        ctx.strokeText(e.vocab, e.drawX, e.drawY - size * 0.42);
+        ctx.fillText(e.vocab, e.drawX, e.drawY - size * 0.42);
+        if (e.isBoss) drawBossHp(e);
+      }
+
+      /* ---------- Player / effects ---------- */
+      function drawPlayer(dt) {
+        const scale = playerDisplayScale;
+        const px = player.x - (FRAME_W * scale) / 2;
+        const py = player.y - (FRAME_H * scale) / 2;
+        if (!spriteImg.complete || !spriteImg.naturalWidth) return;
+        if (animatingAttack) {
+          ctx.drawImage(spriteImg, currentFrame * FRAME_W, 0, FRAME_W, FRAME_H, px, py, FRAME_W * scale, FRAME_H * scale);
+          frameTimer += dt;
+          if (frameTimer >= FRAME_INTERVAL) {
+            currentFrame++;
+            frameTimer = 0;
+            if (currentFrame >= ATTACK_FRAMES) { currentFrame = 0; animatingAttack = false; }
+          }
+        } else {
+          ctx.drawImage(spriteImg, 0, 0, FRAME_W, FRAME_H, px, py, FRAME_W * scale, FRAME_H * scale);
+        }
+      }
+
+      function triggerAttackFx(enemy) {
+        animatingAttack = true;
+        currentFrame = 0;
+        frameTimer = 0;
+        playSlash();
+        effects.push({ x1: player.x, y1: player.y, x2: enemy.drawX, y2: enemy.drawY, t: 0 });
+      }
+
+      function updateAndDrawEffects(dtScale) {
+        for (const fx of effects) {
+          fx.t += 0.16 * dtScale;
+          const alpha = Math.max(0, 1 - fx.t);
+          ctx.save();
+          ctx.strokeStyle = `rgba(255,214,140,${alpha})`;
+          ctx.lineWidth = 6;
+          ctx.shadowColor = 'rgba(255,140,60,0.8)';
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.moveTo(fx.x1, fx.y1);
+          ctx.lineTo(fx.x2, fx.y2);
+          ctx.stroke();
+          ctx.restore();
+        }
+        effects = effects.filter(fx => fx.t < 1);
+      }
+
+      function updateShake(dt) {
+        if (shake.time > 0) {
+          shake.time -= dt;
+          const t = Math.max(0, shake.time) / 320;
+          const mag = shake.intensity * t;
+          const ox = (Math.random() * 2 - 1) * mag;
+          const oy = (Math.random() * 2 - 1) * mag;
+          canvasContainer.style.transform = `translate(${ox.toFixed(1)}px, ${oy.toFixed(1)}px)`;
+        } else if (canvasContainer.style.transform) {
+          canvasContainer.style.transform = '';
+        }
+      }
+
+      /* ---------- Wave / boss progression ---------- */
+      function maybeAdvanceWave() {
+        if (killsInWave >= KILLS_PER_WAVE) {
+          killsInWave = 0;
+          wave++;
+          if (wave % 5 === 0) {
+            startBossSequence();
+          } else {
+            showWaveBanner(`Wave ${wave}`);
+          }
+          updateHud();
+        }
+      }
+
+      function startBossSequence() {
+        isBossActive = true;
+        paused = true;
+        enemies = []; // clear the field for a clean boss encounter
+        const boss = createBossEnemy();
+        enemies.push(boss);
+        showBossModal(boss, true);
+      }
+
+      async function showBossModal(boss, isFirst) {
+        bossModalTitle.textContent = isFirst ? 'Boss Incoming!' : (boss.hitsRemaining > 0 ? 'Boss Wounded!' : 'Boss Defeated!');
+        bossHitsBadge.textContent = `Hits remaining: ${boss.hitsRemaining}`;
+        bossRiddleText.textContent = 'Summoning a riddle…';
+        bossEngageBtn.disabled = true;
+        bossEngageBtn.textContent = isFirst ? 'Engage!' : 'Continue';
+        bossModal.style.display = 'flex';
+        inputBox.disabled = true;
+        const riddle = await generateBossRiddle(boss);
+        bossRiddleText.textContent = riddle;
+        bossEngageBtn.disabled = false;
+      }
+
+      function resumeFromBossModal() {
+        bossModal.style.display = 'none';
+        if (isGameRunning) {
+          inputBox.disabled = false;
+          inputBox.focus();
+        }
+        paused = false;
+        lastSpawn = performance.now();
+      }
+
+      function prepareNextBossRiddle(boss) {
+        paused = true;
+        const nextItem = pickVocabItem(boss.vocab);
+        boss.vocab = nextItem.vocab;
+        boss.pinyin = nextItem.pinyin || '';
+        boss.meaning = nextItem.meaning || '';
+        showBossModal(boss, false);
+      }
+
+      function defeatBoss(boss) {
+        boss.alive = false;
+        const bonus = Math.round(250 + wave * 25);
+        score += bonus;
+        updateHud();
+        spawnScorePop(player.x, player.y - 190, `BOSS DEFEATED +${bonus}`, { big: true });
+        isBossActive = false;
+        lastSpawn = performance.now() + 2200; // brief safe beat before spawns ramp back in
+        showWaveBanner(`Wave ${wave} cleared! Brace for more…`);
+      }
+
+      /* ---------- Combat resolution ---------- */
+      function handleNormalKill(enemy) {
+        enemy.alive = false;
+        recordAnswer(sheetId, enemy.vocab, true);
+        totalKills++;
+        killsInWave++;
+        bumpCombo();
+        const gain = Math.round((10 + wave * 1.5) * comboMultiplier * speedMultiplier);
+        score += gain;
+        updateHud();
+        spawnScorePop(enemy.drawX, enemy.drawY, '+' + gain);
+        triggerAttackFx(enemy);
+        maybeAdvanceWave();
+      }
+
+      function handleBossHit(boss) {
+        boss.hitsRemaining--;
+        totalKills++;
+        bumpCombo();
+        const gain = Math.round((80 + wave * 5) * comboMultiplier * speedMultiplier);
+        score += gain;
+        updateHud();
+        spawnScorePop(boss.drawX, boss.drawY, '+' + gain, { big: true });
+        triggerAttackFx(boss);
+        if (boss.hitsRemaining > 0) {
+          prepareNextBossRiddle(boss);
+        } else {
+          defeatBoss(boss);
+        }
+      }
+
+      function handleSubmitWord() {
+        if (!isGameRunning || paused) return;
+        const typed = inputBox.value.trim().toLowerCase();
+        if (!typed) return;
+
+        let target = null;
+        const boss = enemies.find(e => e.isBoss && e.alive);
+        if (boss) {
+          if (boss.vocab.trim().toLowerCase() === typed) target = boss;
+        } else {
+          let bestDist = Infinity;
+          for (const e of enemies) {
+            if (!e.alive || e.isBoss) continue;
+            if (e.vocab.trim().toLowerCase() !== typed) continue;
+            const d = Math.hypot(e.x - player.x, e.y - player.y);
+            if (d < bestDist) { bestDist = d; target = e; }
+          }
+        }
+
+        if (!target) {
+          bumpClass(inputBox, 'input-shake');
+          return;
+        }
+
+        inputBox.value = '';
+        if (target.isBoss) handleBossHit(target); else handleNormalKill(target);
+      }
+
+      /* ---------- Main loop ---------- */
+      function gameLoop(timestamp) {
+        if (!isGameRunning) return;
+        const dt = lastTimestamp ? Math.min(48, timestamp - lastTimestamp) : 16.67;
+        lastTimestamp = timestamp;
+        const dtScale = dt / 16.6667;
+
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (bgImage.complete && bgImage.naturalWidth) {
+          ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+        }
+
+        if (!paused) {
+          if (!isBossActive && timestamp - lastSpawn > currentSpawnInterval()) {
+            spawnEnemy();
+            if (wave >= 6 && Math.random() < 0.25) spawnEnemy();
+            lastSpawn = timestamp;
+          }
+          for (const e of enemies) {
+            if (e.alive) updateEnemy(e, dtScale);
+          }
+        }
+
+        drawPlayer(dt);
+        for (const e of enemies) {
+          if (e.alive) drawEnemy(e, timestamp);
+        }
+        updateAndDrawEffects(dtScale);
+        updateShake(dt);
+
+        enemies = enemies.filter(e => e.alive);
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      /**
+       * How much faster enemies spawn at the chosen speed. Slower than 1x
+       * scales linearly (slow game, slow spawns); faster than 1x grows only
+       * logarithmically, so 2x stays survivable (1.5x the spawn rate).
+       */
+      function spawnRateScale(multiplier) {
+        return multiplier <= 1 ? multiplier : 1 + Math.log2(multiplier) / 2;
+      }
+
+      function currentSpawnInterval() {
+        const base = Math.max(MIN_SPAWN_INTERVAL, BASE_SPAWN_INTERVAL - (wave - 1) * 140);
+        return Math.max(MIN_SPAWN_INTERVAL, base / spawnRateScale(speedMultiplier));
+      }
+
+      /* ---------- Start / reset ---------- */
+      function resetGameState() {
+        enemies = [];
+        effects = [];
+        score = 0;
+        lives = STARTING_LIVES;
+        wave = 1;
+        killsInWave = 0;
+        totalKills = 0;
+        comboMultiplier = 1;
+        isBossActive = false;
+        paused = false;
+        shake.time = 0;
+        shake.intensity = 0;
+        animatingAttack = false;
+        currentFrame = 0;
+        frameTimer = 0;
+        canvasContainer.style.transform = '';
+        updateHud();
+      }
+
+      async function startGame() {
+        sheetId = levelSelect.value;
+        speedMultiplier = parseFloat(speedSlider.value) || 1;
+
+        beginBtn.disabled = true;
+        beginBtn.textContent = 'Loading Arena…';
+        vocabPool = await loadVocabPool(sheetId);
+        beginBtn.disabled = false;
+        beginBtn.textContent = 'Begin Survival';
+
+        startMenu.style.display = 'none';
+        resetGameState();
+
+        hudBar.style.display = 'flex';
+        inputContainer.style.display = 'block';
+        inputBox.disabled = false;
+
+        try { menuMusic.pause(); } catch (err) { /* ignore */ }
+        try {
+          battleMusic.currentTime = 0;
+          battleMusic.play().catch(err => console.warn('[vocabroyale] battle music blocked:', err));
+        } catch (err) { /* ignore */ }
+
+        showWaveBanner('Wave 1');
+        inputBox.focus();
+
+        isGameRunning = true;
+        lastSpawn = performance.now();
+        lastTimestamp = 0;
+        requestAnimationFrame(gameLoop);
+      }
+
+      /* ---------- Resize / mobile keyboard handling ---------- */
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+        playerDisplayScale = Math.max(2.2, Math.min(4.2, Math.min(canvas.width, canvas.height) / 230));
+      }
+
+      function adjustForKeyboard() {
+        if (!window.visualViewport) return;
+        const vv = window.visualViewport;
+        const keyboardInset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        inputContainer.style.bottom = `calc(${keyboardInset}px + env(safe-area-inset-bottom, 0px) + 12px)`;
+      }
+
+      /* ---------- Event wiring ---------- */
+      introScreen.addEventListener('click', () => {
+        introScreen.style.display = 'none';
+        startMenu.style.display = 'block';
+        try { menuMusic.play().catch(err => console.warn('[vocabroyale] menu music blocked:', err)); } catch (err) { /* ignore */ }
+        refreshMenuBestScore();
+        refreshMenuLeaderboard();
+      });
+
+      speedSlider.addEventListener('input', () => { speedValueEl.textContent = speedSlider.value; });
+
+      beginBtn.addEventListener('click', () => { startGame(); });
+
+      typeForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleSubmitWord();
+      });
+
+      bossEngageBtn.addEventListener('click', resumeFromBossModal);
+
+      restartBtn.addEventListener('click', () => {
+        gameoverModal.style.display = 'none';
+        startMenu.style.display = 'block';
+        refreshMenuBestScore();
+        refreshMenuLeaderboard();
+      });
+
+      window.addEventListener('resize', resize);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', adjustForKeyboard);
+        window.visualViewport.addEventListener('scroll', adjustForKeyboard);
+      }
+
+      window.addEventListener('firebase-client-ready', () => {
+        // Only relevant while the menu (or game-over screen) is visible; a
+        // fresh call is harmless and keeps the preview list accurate.
+        if (startMenu.style.display !== 'none') refreshMenuLeaderboard();
+      });
+
+      /* ---------- Boot ---------- */
+      if (typeof populateLevelSelect === 'function') {
+        populateLevelSelect(levelSelect);
+      } else {
+        levelSelect.innerHTML = '<option value="">Default vocabulary</option>';
+      }
+      resize();
+      refreshMenuBestScore();
+    });
+  </script>
+</body>
+
+</html>

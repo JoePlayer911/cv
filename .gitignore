@@ -1,0 +1,22 @@
+# Retired / archived pages and scratch files (kept locally, never committed)
+old/
+
+# Python
+__pycache__/
+*.pyc
+app.log
+
+# Runtime data (regenerated per-player, never committed)
+saves/
+
+# Node
+node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Local env / secrets
+.env
+.env.local

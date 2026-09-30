@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Word Dragon 字龙</title>
+  <meta name="description" content="Snake reimagined as a Chinese dragon: steer through a lantern-lit night sky and eat the characters in order to spell each word from your Mandarin curriculum." />
+  <meta name="theme-color" content="#060d1f" />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="projects.css" />
+  <link rel="stylesheet" href="games.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
+  <script src="shared.js" defer></script>
+  <style>
+    /* ==========================================================================
+       Word Dragon 字龙 — page styles (shared tokens come from games.css)
+       ========================================================================== */
+    [hidden] { display: none !important; }
+
+    :root {
+      --wd-jade: #1f9e7a;
+      --wd-red: #c8322b;
+      --wd-kai: "KaiTi", "STKaiti", "Kaiti SC", "BiauKai", "Noto Serif SC", "Songti SC", serif;
+      --wd-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+    }
+
+    body.wd-playing { overscroll-behavior: none; }
+
+    .wd-wrap { max-width: 780px; padding-top: clamp(8px, 2.5vw, 20px); }
+
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+
+    .wd-title-zh { font-family: var(--wd-kai); font-weight: 700; margin-left: 4px; }
+
+    /* ---------- Setup screen ---------- */
+    .wd-hero {
+      display: flex; align-items: center; justify-content: center; gap: 14px;
+      margin: -4px 0 12px;
+    }
+    .wd-hero__glyph {
+      font-family: var(--wd-kai); font-size: clamp(2.6rem, 11vw, 3.6rem); line-height: 1;
+      color: var(--clr-gold); text-shadow: 0 0 24px rgba(245 197 66 / 0.45), 0 2px 0 #7a1b12;
+    }
+    .wd-hero__text { color: var(--clr-text-muted); font-size: 0.92rem; max-width: 34ch; margin: 0; }
+
+    .wd-status {
+      margin: 4px 0 14px; padding: 8px 12px; border-radius: var(--radius-sm);
+      font-size: 0.86rem; color: var(--clr-text-muted); background: rgba(255 255 255 / 0.03);
+      border: 1px solid var(--clr-border);
+    }
+    .wd-status--ok { color: #9be3b4; border-color: rgba(34 197 94 / 0.35); }
+    .wd-status--warn { color: #ffd68a; border-color: rgba(245 197 66 / 0.5); background: rgba(245 197 66 / 0.08); }
+    .wd-status--error { color: #ffb4b4; border-color: rgba(239 68 68 / 0.55); background: rgba(239 68 68 / 0.08); }
+
+    .wd-field { border: none; margin: 0 0 14px; padding: 0; min-width: 0; }
+    .wd-field > legend {
+      font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--clr-text-muted); margin-bottom: 8px; padding: 0;
+    }
+
+    .wd-seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    @media (max-width: 520px) {
+      .wd-seg { grid-template-columns: 1fr; gap: 6px; }
+      .wd-seg__opt span { flex-direction: row; align-items: baseline; gap: 8px; padding: 8px 12px; }
+      .wd-seg__opt b { flex: 0 0 auto; }
+    }
+    .wd-seg__opt { position: relative; display: block; cursor: pointer; }
+    .wd-seg__opt input { position: absolute; opacity: 0; pointer-events: none; }
+    .wd-seg__opt span {
+      display: flex; flex-direction: column; gap: 2px; height: 100%;
+      padding: 10px 12px; border-radius: var(--radius-md);
+      border: 1px solid var(--clr-border); background: rgba(255 255 255 / 0.03);
+      transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+    }
+    .wd-seg__opt b { font-size: 0.95rem; }
+    .wd-seg__opt small { color: var(--clr-text-muted); font-size: 0.78rem; line-height: 1.35; }
+    .wd-seg__opt:hover span { background: var(--clr-surface-hover); }
+    .wd-seg__opt input:checked + span {
+      border-color: var(--clr-gold); background: rgba(245 197 66 / 0.10);
+      box-shadow: inset 0 0 0 1px rgba(245 197 66 / 0.35);
+    }
+    .wd-seg__opt input:focus-visible + span { outline: 3px solid var(--clr-accent); outline-offset: 2px; }
+
+    .wd-hint { font-size: 0.8rem; color: var(--clr-text-muted); margin: 6px 0 0; }
+
+    .wd-check { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 0.92rem; cursor: pointer; }
+    .wd-check input { width: 18px; height: 18px; accent-color: var(--clr-gold); }
+
+    .wd-best { text-align: center; color: var(--clr-gold); font-size: 0.88rem; margin: 10px 0 0; min-height: 1.3em; }
+
+    .wd-how { margin-top: 14px; color: var(--clr-text-muted); font-size: 0.88rem; }
+    .wd-how summary { cursor: pointer; color: var(--clr-text); font-weight: 600; }
+    .wd-how ul { margin: 8px 0 0; padding-left: 20px; }
+    .wd-how li { margin: 4px 0; }
+
+    /* ---------- In-game HUD ---------- */
+    .wd-hud { display: flex; gap: 6px; align-items: stretch; margin: 0 0 8px; }
+    .wd-hud .hud__stat { flex: 1 1 0; min-width: 0; padding: 4px 6px; border-radius: var(--radius-sm); }
+    .wd-hud .hud__stat-value { font-size: clamp(0.95rem, 3.6vw, 1.2rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wd-hud .hud__stat-label { font-size: 0.62rem; }
+    .wd-hearts { letter-spacing: 1px; }
+    .wd-heart--empty { opacity: 0.28; }
+    .wd-hud__btns { display: flex; gap: 6px; }
+    .wd-icon-btn {
+      width: 42px; min-height: 42px; border-radius: var(--radius-sm); border: 1px solid var(--clr-border);
+      background: var(--clr-surface); color: var(--clr-text); font-size: 1.05rem; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wd-icon-btn:hover { background: var(--clr-surface-hover); }
+    .wd-icon-btn:focus-visible { outline: 3px solid var(--clr-accent); outline-offset: 2px; }
+
+    /* ---------- Prompt card ---------- */
+    .wd-prompt {
+      position: relative; margin: 0 0 10px; padding: 8px 14px 10px;
+      border-radius: var(--radius-md); border: 1px solid rgba(245 197 66 / 0.28);
+      background: linear-gradient(135deg, rgba(200 50 43 / 0.16), rgba(18 37 80 / 0.55));
+      text-align: center;
+    }
+    .wd-prompt.is-new { animation: wdPromptIn 0.45s ease; }
+    .wd-prompt__top { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 20px; }
+    .wd-prompt__label { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--clr-text-muted); }
+    .wd-effects { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .wd-effect {
+      font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: var(--radius-pill);
+      background: rgba(245 197 66 / 0.16); color: var(--clr-gold); white-space: nowrap;
+    }
+    .wd-prompt__main {
+      min-height: 2.6em; display: flex; align-items: center; justify-content: center;
+      font-family: 'Outfit', 'Inter', sans-serif; font-weight: 700; line-height: 1.25;
+      font-size: clamp(1.05rem, 4.4vw, 1.35rem);
+    }
+    .wd-prompt__en {
+      display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .wd-prompt__py { font-size: 1.15em; letter-spacing: 0.02em; }
+    .wd-listen {
+      display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 18px;
+      border-radius: var(--radius-pill); border: 1px solid rgba(245 197 66 / 0.5);
+      background: rgba(245 197 66 / 0.12); color: var(--clr-gold); font: inherit; font-size: 1rem; cursor: pointer;
+    }
+    .wd-listen:hover { background: rgba(245 197 66 / 0.2); }
+
+    .wd-progress { display: flex; justify-content: center; gap: 6px; margin-top: 4px; min-height: 2.2rem; }
+    .wd-progress__box {
+      width: 2.2rem; height: 2.2rem; display: grid; place-items: center; border-radius: 8px;
+      font-family: var(--wd-cjk); font-size: clamp(1rem, 4vw, 1.2rem); font-weight: 700;
+      border: 1px dashed rgba(255 255 255 / 0.22); color: var(--clr-gold); background: rgba(0 0 0 / 0.18);
+    }
+    .wd-progress__box.is-done { border-style: solid; border-color: rgba(245 197 66 / 0.6); background: rgba(200 50 43 / 0.45); animation: pop 0.3s ease; }
+    .wd-progress__box.is-next { border-color: var(--clr-gold); box-shadow: 0 0 0 2px rgba(245 197 66 / 0.25); }
+    .wd-progress__box.is-next::after { content: '_'; color: var(--clr-gold); animation: wdBlink 1s steps(2) infinite; }
+    .wd-progress.is-complete .wd-progress__box { background: var(--clr-gold); color: #7a1b12; border-color: var(--clr-gold); }
+
+    /* ---------- Stage (canvas + overlays) ---------- */
+    .wd-stage { position: relative; margin: 0 auto; }
+    .wd-stage canvas {
+      display: block; border-radius: 14px; touch-action: none; user-select: none; -webkit-user-select: none;
+      border: 1px solid rgba(245 197 66 / 0.45);
+      box-shadow: 0 0 0 4px rgba(6 13 31 / 0.6), 0 0 34px rgba(59 139 255 / 0.18), 0 12px 40px rgba(0 0 0 / 0.45);
+    }
+    .wd-stage.is-wrap canvas { border-style: dashed; border-color: rgba(114 180 255 / 0.55); }
+
+    .wd-banner {
+      position: absolute; left: 50%; top: 14%; transform: translateX(-50%);
+      min-width: min(80%, 260px); max-width: 90%; padding: 10px 18px 12px; text-align: center;
+      border-radius: var(--radius-md); background: rgba(6 13 31 / 0.84); border: 1px solid rgba(245 197 66 / 0.6);
+      box-shadow: 0 0 30px rgba(245 197 66 / 0.25); pointer-events: none;
+      animation: wdBannerIn 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+    }
+    .wd-banner.is-low { top: auto; bottom: 12%; }
+    .wd-banner__zh { font-family: var(--wd-kai); font-size: clamp(1.9rem, 8vw, 2.5rem); color: var(--clr-gold); line-height: 1.15; }
+    .wd-banner__py { font-weight: 700; font-size: 1.05rem; }
+    .wd-banner__en { color: var(--clr-text); font-size: 0.92rem; }
+    .wd-banner__pts { margin-top: 4px; font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--clr-gold); }
+    .wd-banner__pts span { color: #ffb070; font-size: 0.85em; margin-left: 4px; }
+
+    .wd-power {
+      position: absolute; left: 50%; bottom: 10%; transform: translateX(-50%);
+      padding: 8px 18px; border-radius: var(--radius-pill); white-space: nowrap;
+      background: linear-gradient(135deg, #f5c542, #d98a14); color: #3a1a05; font-weight: 800;
+      box-shadow: 0 0 26px rgba(245 197 66 / 0.55); pointer-events: none; animation: wdBannerIn 0.3s ease;
+    }
+
+    .wd-pause {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: rgba(4 8 20 / 0.72); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+      border-radius: 14px; padding: 16px;
+    }
+    .wd-pause__box { text-align: center; }
+    .wd-pause__box h2 { font-family: 'Outfit', sans-serif; margin: 0 0 4px; font-size: 1.6rem; }
+    .wd-pause__box p { color: var(--clr-text-muted); margin: 0 0 14px; font-size: 0.9rem; }
+
+    .wd-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+    .wd-actions a.btn { text-decoration: none; }
+
+    /* ---------- D-pad (touch / small screens) ---------- */
+    .wd-dpad {
+      display: none; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(2, 48px);
+      grid-template-areas: ". up ." "left down right"; gap: 6px; justify-content: center; margin: 10px auto 0;
+      touch-action: none; user-select: none; -webkit-user-select: none;
+    }
+    .wd-dpad button {
+      border-radius: 12px; border: 1px solid rgba(245 197 66 / 0.35); background: rgba(255 255 255 / 0.06);
+      color: var(--clr-gold); font-size: 1.1rem; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent;
+    }
+    .wd-dpad button.is-pressed, .wd-dpad button:active { background: rgba(245 197 66 / 0.25); }
+    .wd-dpad [data-dir="up"] { grid-area: up; }
+    .wd-dpad [data-dir="left"] { grid-area: left; }
+    .wd-dpad [data-dir="down"] { grid-area: down; }
+    .wd-dpad [data-dir="right"] { grid-area: right; }
+    .wd-keys { text-align: center; color: var(--clr-text-muted); font-size: 0.78rem; margin: 10px 0 0; }
+
+    @media (pointer: coarse), (max-width: 640px) {
+      .wd-dpad { display: grid; }
+      .wd-keys { display: none; }
+    }
+
+    /* ---------- Game over ---------- */
+    .wd-over-title {
+      font-family: 'Outfit', sans-serif; text-align: center; margin: 0; font-size: clamp(1.4rem, 5vw, 1.8rem);
+      background: linear-gradient(90deg, var(--clr-gold), #ff8a5c); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .wd-over-sub { text-align: center; color: var(--clr-text-muted); margin: 2px 0 0; font-size: 0.9rem; }
+    .wd-newbest { text-align: center; margin: 8px 0 0; }
+    .wd-over-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .wd-over-stats .hud__stat { min-width: 0; padding: 8px 6px; }
+    @media (max-width: 520px) { .wd-over-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .wd-h3 { font-family: 'Outfit', sans-serif; font-size: 1rem; margin: 6px 0 8px; color: var(--clr-gold); text-align: center; }
+
+    .wd-scroll {
+      list-style: none; margin: 0; padding: 6px; max-height: 340px; overflow-y: auto;
+      border-radius: var(--radius-md); border: 1px solid rgba(245 197 66 / 0.3);
+      background: linear-gradient(180deg, rgba(245 197 66 / 0.06), rgba(200 50 43 / 0.06));
+    }
+    .wd-scroll__item {
+      display: grid; grid-template-columns: 26px auto 1fr auto; grid-template-areas: "mark zh py say" "mark zh en say";
+      align-items: center; column-gap: 10px; padding: 6px 8px; border-radius: var(--radius-sm);
+    }
+    .wd-scroll__item + .wd-scroll__item { border-top: 1px solid rgba(255 255 255 / 0.06); }
+    .wd-scroll__mark { grid-area: mark; font-weight: 800; text-align: center; }
+    .wd-scroll__item.is-perfect .wd-scroll__mark { color: var(--clr-success); }
+    .wd-scroll__item:not(.is-perfect) .wd-scroll__mark { color: var(--clr-danger); }
+    .wd-scroll__zh { grid-area: zh; font-family: var(--wd-cjk); font-size: 1.35rem; font-weight: 700; }
+    .wd-scroll__py { grid-area: py; font-weight: 600; font-size: 0.9rem; }
+    .wd-scroll__en { grid-area: en; color: var(--clr-text-muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+    .wd-scroll__note { color: #ffb4b4; font-size: 0.75rem; margin-left: 4px; }
+    .wd-say { grid-area: say; }
+    .wd-empty { text-align: center; color: var(--clr-text-muted); padding: 12px; }
+
+    /* ---------- Animations ---------- */
+    @keyframes wdPromptIn { from { transform: scale(0.96); box-shadow: 0 0 0 rgba(245 197 66 / 0); } 50% { box-shadow: 0 0 26px rgba(245 197 66 / 0.35); } to { transform: scale(1); } }
+    @keyframes wdBannerIn { from { opacity: 0; transform: translate(-50%, 10px) scale(0.9); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+    @keyframes wdBlink { 50% { opacity: 0; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .wd-prompt.is-new, .wd-banner, .wd-power, .wd-progress__box, .wd-progress__box.is-next::after { animation: none !important; }
+    }
+  </style>
+</head>
+
+<body class="game-shell">
+  <nav class="back-nav"><a href="index.html#projects" class="back-nav__link"><svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg> Projects</a></nav>
+
+  <main class="game-wrap wd-wrap">
+    <header class="game-header" id="page-header">
+      <h1 class="game-header__title">Word Dragon <span class="wd-title-zh" lang="zh">字龙</span></h1>
+      <p class="game-header__subtitle">Steer the dragon, eat the characters in order, spell the word.</p>
+    </header>
+
+    <p class="sr-only" id="live" aria-live="polite"></p>
+
+    <!-- ---------- Setup screen ---------- -->
+    <section class="panel" id="setup-screen" aria-label="Game setup">
+      <div class="wd-hero">
+        <span class="wd-hero__glyph" lang="zh" aria-hidden="true">龍</span>
+        <p class="wd-hero__text">A prompt appears, glowing character pearls scatter across the night sky. Eat them in the right order to spell the word — decoys bite back.</p>
+      </div>
+
+      <div class="field-row">
+        <label for="level-select">Curriculum</label>
+        <select id="level-select" class="select"></select>
+      </div>
+      <p class="wd-status" id="setup-status" role="status">Loading words…</p>
+
+      <fieldset class="wd-field">
+        <legend>Prompt</legend>
+        <div class="wd-seg">
+          <label class="wd-seg__opt"><input type="radio" name="mode" value="meaning" checked /><span><b>Meaning → 汉字</b><small>Read the English, spell it in characters.</small></span></label>
+          <label class="wd-seg__opt"><input type="radio" name="mode" value="pinyin" /><span><b>Pinyin → 汉字</b><small>Tone-coloured pinyin, spell the characters.</small></span></label>
+          <label class="wd-seg__opt" id="listen-opt" hidden><input type="radio" name="mode" value="listen" /><span><b>Listen → 汉字</b><small>Hear the word only — no text clues.</small></span></label>
+        </div>
+        <p class="wd-hint" id="voice-note" hidden>Listen mode appears when your device has a Mandarin voice.</p>
+      </fieldset>
+
+      <fieldset class="wd-field">
+        <legend>Difficulty</legend>
+        <div class="wd-seg">
+          <label class="wd-seg__opt"><input type="radio" name="diff" value="chill" /><span><b>Chill</b><small>Slow dragon, walls wrap around, 3 decoys.</small></span></label>
+          <label class="wd-seg__opt"><input type="radio" name="diff" value="classic" checked /><span><b>Classic</b><small>Solid walls, 5 decoys, steady speed-up.</small></span></label>
+          <label class="wd-seg__opt"><input type="radio" name="diff" value="master" /><span><b>Dragon Master</b><small>Fast from the start, 7 decoys.</small></span></label>
+        </div>
+      </fieldset>
+
+      <label class="wd-check" id="voice-row" hidden><input type="checkbox" id="voice-toggle" checked /> Say each word aloud when it's spelled</label>
+
+      <button class="btn btn--primary btn--block" id="start-btn" type="button" disabled>Loading…</button>
+      <p class="wd-best" id="best-note"></p>
+
+      <details class="wd-how">
+        <summary>How to play</summary>
+        <ul>
+          <li>Steer with <b>arrow keys / WASD</b>, <b>swipe</b> on the board, or the on-screen pad. <b>Space / P</b> pauses.</li>
+          <li>Eat the characters <b>in order</b>. Each one joins your dragon's body.</li>
+          <li>A wrong or out-of-order character costs a heart and the dragon coughs up two segments. Walls and your own tail cost a heart too.</li>
+          <li>Golden <b>龙珠</b> dragon pearls give slow-mo, pinyin reveal, a magnet or an extra heart.</li>
+          <li>Spell words with no mistakes in a row to build a <b>streak multiplier</b>.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- ---------- Game screen ---------- -->
+    <section id="game-screen" aria-label="Word Dragon game" hidden>
+      <div class="wd-hud">
+        <div class="hud__stat"><span class="hud__stat-value" id="hud-score">0</span><span class="hud__stat-label">Score</span></div>
+        <div class="hud__stat hud__stat--danger"><span class="hud__stat-value wd-hearts" id="hud-hearts" aria-label="Hearts"></span><span class="hud__stat-label">Hearts</span></div>
+        <div class="hud__stat hud__stat--success"><span class="hud__stat-value" id="hud-words">0</span><span class="hud__stat-label">Words</span></div>
+        <div class="hud__stat hud__stat--gold"><span class="hud__stat-value" id="hud-streak">0</span><span class="hud__stat-label">Streak</span></div>
+        <div class="wd-hud__btns">
+          <button class="wd-icon-btn" id="mute-btn" type="button" aria-label="Mute sound effects" aria-pressed="false">🔊</button>
+          <button class="wd-icon-btn" id="pause-btn" type="button" aria-label="Pause">⏸</button>
+        </div>
+      </div>
+
+      <div class="wd-prompt" id="prompt">
+        <div class="wd-prompt__top">
+          <span class="wd-prompt__label" id="prompt-label">Spell</span>
+          <span class="wd-effects" id="effects"></span>
+        </div>
+        <div class="wd-prompt__main" id="prompt-main"></div>
+        <div class="wd-progress" id="progress" aria-label="Characters spelled so far"></div>
+      </div>
+
+      <div class="wd-stage" id="stage">
+        <canvas id="board" role="img" aria-label="Word Dragon board: steer the dragon to the character pearls"></canvas>
+        <div class="wd-banner" id="banner" hidden></div>
+        <div class="wd-power" id="power-toast" role="status" hidden></div>
+        <div class="wd-pause" id="pause-overlay" hidden>
+          <div class="wd-pause__box">
+            <h2>Paused</h2>
+            <p>Press Space / P or tap Resume.</p>
+            <div class="wd-actions">
+              <button class="btn btn--primary" id="resume-btn" type="button">Resume</button>
+              <button class="btn btn--ghost" id="end-btn" type="button">End run</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wd-dpad" id="dpad" aria-label="Direction pad">
+        <button type="button" data-dir="up" aria-label="Up">▲</button>
+        <button type="button" data-dir="left" aria-label="Left">◀</button>
+        <button type="button" data-dir="down" aria-label="Down">▼</button>
+        <button type="button" data-dir="right" aria-label="Right">▶</button>
+      </div>
+      <p class="wd-keys" id="keys-hint">Arrow keys / WASD to steer · Space or P to pause · swipe works too</p>
+    </section>
+
+    <!-- ---------- Game over screen ---------- -->
+    <section class="panel" id="over-screen" aria-label="Run summary" hidden>
+      <h2 class="wd-over-title">The dragon rests</h2>
+      <p class="wd-over-sub" id="over-sub"></p>
+      <p class="wd-newbest" id="new-best" hidden><span class="badge">🏆 New personal best!</span></p>
+      <div class="hud wd-over-stats">
+        <div class="hud__stat hud__stat--gold"><span class="hud__stat-value" id="over-score">0</span><span class="hud__stat-label">Score</span></div>
+        <div class="hud__stat"><span class="hud__stat-value" id="over-best">0</span><span class="hud__stat-label">Best</span></div>
+        <div class="hud__stat hud__stat--success"><span class="hud__stat-value" id="over-words">0</span><span class="hud__stat-label">Words spelled</span></div>
+        <div class="hud__stat"><span class="hud__stat-value" id="over-streak">0</span><span class="hud__stat-label">Best streak</span></div>
+      </div>
+      <h3 class="wd-h3">Scroll of words</h3>
+      <ol class="wd-scroll" id="scroll-list"></ol>
+      <div class="wd-actions">
+        <button class="btn btn--primary" id="again-btn" type="button">Play again</button>
+        <button class="btn btn--ghost" id="settings-btn" type="button">Change settings</button>
+        <a class="btn btn--ghost" href="index.html#projects">Back to projects</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      'use strict';
+
+      /* ======================================================================
+         1. Config
+         ====================================================================== */
+      const DIFFICULTY = {
+        chill:   { label: 'Chill',         baseStep: 215, minStep: 140, ramp: 3, decoys: 3, wrap: true },
+        classic: { label: 'Classic',       baseStep: 170, minStep: 98,  ramp: 4, decoys: 5, wrap: false },
+        master:  { label: 'Dragon Master', baseStep: 128, minStep: 72,  ramp: 4, decoys: 7, wrap: false },
+      };
+      const MODES = ['meaning', 'pinyin', 'listen'];
+      const START_HEARTS = 3;
+      const MAX_HEARTS = 5;
+      const START_LENGTH = 3;
+      const MAX_WORD_CHARS = 6;
+      const SLOW_FACTOR = 1.7;
+      const SLOW_MS = 5000;
+      const ORB_LIFETIME = 12000;
+      const FIRST_COUNTDOWN = 2100;
+      const CELEBRATE_MS = 1500;
+      const POWERS = {
+        slow:   { icon: '🐢', label: 'Slow-mo!' },
+        reveal: { icon: '👁', label: 'Pinyin revealed!' },
+        magnet: { icon: '🧲', label: 'Magnet!' },
+        heart:  { icon: '♥', label: '+1 heart!' },
+      };
+      const DIRS = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+      const KEY_DIRS = {
+        ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+        KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right',
+        w: 'up', s: 'down', a: 'left', d: 'right',
+      };
+      const CJK_FONT = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC",sans-serif';
+      const SETTINGS_KEY = 'wordDragonSettings';
+      const MUTE_KEY = 'wordDragonMuted';
+      const BEST_PREFIX = 'wordDragonBest:';
+      const TAU = Math.PI * 2;
+      const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const reduced = () => reducedMotionQuery.matches;
+
+      /* ======================================================================
+         2. Small helpers
+         ====================================================================== */
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const randBetween = (lo, hi) => lo + Math.random() * (hi - lo);
+      const easeOutBack = u => { const k = 1.70158; return 1 + (k + 1) * Math.pow(u - 1, 3) + k * Math.pow(u - 1, 2); };
+      const streakMult = s => 1 + 0.5 * Math.min(Math.max(s - 1, 0), 4);
+
+      function loadJson(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw == null ? fallback : JSON.parse(raw);
+        } catch { return fallback; }
+      }
+      function saveJson(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ }
+      }
+
+      /* ======================================================================
+         3. DOM references
+         ====================================================================== */
+      const $ = id => document.getElementById(id);
+      const els = {
+        header: $('page-header'), live: $('live'),
+        setup: $('setup-screen'), levelSelect: $('level-select'), setupStatus: $('setup-status'),
+        listenOpt: $('listen-opt'), voiceNote: $('voice-note'), voiceRow: $('voice-row'), voiceToggle: $('voice-toggle'),
+        startBtn: $('start-btn'), bestNote: $('best-note'),
+        game: $('game-screen'), score: $('hud-score'), hearts: $('hud-hearts'), words: $('hud-words'), streak: $('hud-streak'),
+        muteBtn: $('mute-btn'), pauseBtn: $('pause-btn'),
+        prompt: $('prompt'), promptLabel: $('prompt-label'), promptMain: $('prompt-main'), progress: $('progress'), effects: $('effects'),
+        stage: $('stage'), canvas: $('board'), banner: $('banner'), powerToast: $('power-toast'),
+        pauseOverlay: $('pause-overlay'), resumeBtn: $('resume-btn'), endBtn: $('end-btn'),
+        dpad: $('dpad'), keysHint: $('keys-hint'),
+        over: $('over-screen'), overSub: $('over-sub'), newBest: $('new-best'), overScore: $('over-score'), overBest: $('over-best'),
+        overWords: $('over-words'), overStreak: $('over-streak'), scrollList: $('scroll-list'),
+        againBtn: $('again-btn'), settingsBtn: $('settings-btn'),
+      };
+      const ctx = els.canvas.getContext('2d');
+
+      function announce(msg) { els.live.textContent = msg; }
+
+      /* ======================================================================
+         4. Settings & best scores (localStorage, all wrapped in try/catch)
+         ====================================================================== */
+      const saved = loadJson(SETTINGS_KEY, {}) || {};
+      const settings = {
+        mode: MODES.includes(saved.mode) ? saved.mode : 'meaning',
+        diff: DIFFICULTY[saved.diff] ? saved.diff : 'classic',
+        voice: saved.voice !== false,
+      };
+      let voiceAvailable = false;
+
+      const bestKey = (levelKey, diff) => `${BEST_PREFIX}${levelKey}:${diff}`;
+      function getBest(levelKey, diff) {
+        const v = Number(loadJson(bestKey(levelKey, diff), 0));
+        return Number.isFinite(v) ? v : 0;
+      }
+
+      function formValue(name) {
+        const el = document.querySelector(`input[name="${name}"]:checked`);
+        return el ? el.value : null;
+      }
+      function checkRadio(name, value) {
+        const el = document.querySelector(`input[name="${name}"][value="${value}"]`);
+        if (el && !el.closest('[hidden]')) el.checked = true;
+      }
+      function applySettingsToForm() {
+        checkRadio('mode', settings.mode === 'listen' && !voiceAvailable ? 'meaning' : settings.mode);
+        checkRadio('diff', settings.diff);
+        els.voiceToggle.checked = settings.voice;
+      }
+      function readSettingsFromForm() {
+        settings.mode = formValue('mode') || 'meaning';
+        settings.diff = formValue('diff') || 'classic';
+        settings.voice = els.voiceToggle.checked;
+        saveJson(SETTINGS_KEY, settings);
+      }
+
+      /* ======================================================================
+         5. Sound (WebAudio synth — no audio files)
+         ====================================================================== */
+      const Sfx = (() => {
+        let ac = null;
+        let out = null;
+        let noiseBuf = null;
+        let muted = loadJson(MUTE_KEY, false) === true;
+
+        function ensure() {
+          if (!ac) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return null;
+            ac = new AC();
+            out = ac.createGain();
+            out.gain.value = 0.45;
+            out.connect(ac.destination);
+            noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+            const data = noiseBuf.getChannelData(0);
+            for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+          }
+          if (ac.state === 'suspended') ac.resume().catch(() => {});
+          return ac;
+        }
+        function envelope(g, at, dur, peak, attack) {
+          g.gain.setValueAtTime(0.0001, at);
+          g.gain.exponentialRampToValueAtTime(peak, at + attack);
+          g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+        }
+        function tone(freq, at, dur, { type = 'sine', gain = 0.2, to = null, attack = 0.006 } = {}) {
+          const o = ac.createOscillator();
+          const g = ac.createGain();
+          o.type = type;
+          o.frequency.setValueAtTime(freq, at);
+          if (to) o.frequency.exponentialRampToValueAtTime(to, at + dur);
+          envelope(g, at, dur, gain, attack);
+          o.connect(g); g.connect(out);
+          o.start(at); o.stop(at + dur + 0.03);
+        }
+        function noise(at, dur, { gain = 0.2, freq = 800, q = 1, type = 'bandpass' } = {}) {
+          const src = ac.createBufferSource();
+          const f = ac.createBiquadFilter();
+          const g = ac.createGain();
+          src.buffer = noiseBuf;
+          f.type = type; f.frequency.value = freq; f.Q.value = q;
+          envelope(g, at, dur, gain, 0.01);
+          src.connect(f); f.connect(g); g.connect(out);
+          src.start(at); src.stop(at + dur + 0.03);
+        }
+        function play(fn) {
+          if (muted || !ensure()) return;
+          try { fn(ac.currentTime + 0.01); } catch { /* audio graph unavailable */ }
+        }
+        const PENTA = [0, 2, 4, 7, 9, 12, 14, 16];
+        const hz = semi => 523.25 * Math.pow(2, semi / 12);
+
+        return {
+          unlock: ensure,
+          chime(i) {
+            play(t => {
+              const f = hz(PENTA[Math.min(i, PENTA.length - 1)]);
+              tone(f, t, 0.4, { gain: 0.22 });
+              tone(f * 2, t, 0.28, { type: 'triangle', gain: 0.06 });
+              tone(f * 3, t + 0.02, 0.2, { gain: 0.03 });
+            });
+          },
+          roar() {
+            play(t => {
+              noise(t, 0.5, { gain: 0.28, freq: 320, q: 0.7, type: 'lowpass' });
+              tone(150, t, 0.55, { type: 'sawtooth', gain: 0.07, to: 65 });
+              [0, 4, 7, 12, 16].forEach((s, k) => tone(hz(s), t + 0.14 + k * 0.07, 0.45, { type: 'triangle', gain: 0.11 }));
+            });
+          },
+          cough() {
+            play(t => {
+              noise(t, 0.12, { gain: 0.32, freq: 520, q: 2 });
+              noise(t + 0.17, 0.12, { gain: 0.26, freq: 430, q: 2 });
+              tone(210, t, 0.32, { type: 'square', gain: 0.045, to: 85 });
+            });
+          },
+          crash() {
+            play(t => {
+              noise(t, 0.35, { gain: 0.38, freq: 240, type: 'lowpass' });
+              tone(150, t, 0.42, { gain: 0.26, to: 40 });
+            });
+          },
+          power() {
+            play(t => [0, 4, 7, 12, 16, 19].forEach((s, k) => tone(hz(s + 7), t + k * 0.05, 0.3, { type: 'triangle', gain: 0.09 })));
+          },
+          over() {
+            play(t => [12, 7, 4, 0, -5].forEach((s, k) => tone(hz(s), t + k * 0.17, 0.5, { type: 'triangle', gain: 0.12 })));
+          },
+          get muted() { return muted; },
+          setMuted(m) { muted = m; saveJson(MUTE_KEY, m); },
+        };
+      })();
+
+      /* ======================================================================
+         6. Vocabulary: loading, filtering, decoy index
+         ====================================================================== */
+      let vocab = { key: null, pool: [], index: null, error: null, fallback: false };
+      let vocabToken = 0;
+
+      function setStatus(text, kind) {
+        els.setupStatus.textContent = text;
+        els.setupStatus.className = `wd-status${kind ? ` wd-status--${kind}` : ''}`;
+      }
+
+      function buildPool(words) {
+        const seen = new Set();
+        const pool = [];
+        for (const w of words || []) {
+          if (!w || !w.vocab || seen.has(w.vocab)) continue;
+          const chars = hanziChars(w.vocab);
+          if (!chars.length || chars.length > MAX_WORD_CHARS) continue;
+          seen.add(w.vocab);
+          const pinyin = String(w.pinyin || '').trim();
+          pool.push({
+            vocab: w.vocab, pinyin, meaning: String(w.meaning || '').trim(), chars,
+            aligned: pinyin ? alignPinyin(w.vocab, pinyin) : null,
+          });
+        }
+        return pool;
+      }
+
+      /** char → word indices, length → word indices, char → a pinyin syllable. */
+      function buildCharIndex(pool) {
+        const byChar = new Map();
+        const byLen = new Map();
+        const syl = new Map();
+        pool.forEach((w, i) => {
+          w.chars.forEach((c, j) => {
+            if (!byChar.has(c)) byChar.set(c, []);
+            byChar.get(c).push(i);
+            if (!syl.has(c) && w.aligned) syl.set(c, w.aligned[j]);
+          });
+          if (!byLen.has(w.chars.length)) byLen.set(w.chars.length, []);
+          byLen.get(w.chars.length).push(i);
+        });
+        return { byChar, byLen, syl, chars: [...byChar.keys()] };
+      }
+
+      async function prepareVocab(key) {
+        const token = ++vocabToken;
+        els.startBtn.disabled = true;
+        els.startBtn.textContent = 'Loading…';
+        setStatus(`Loading “${getLevelLabel(key)}”…`);
+        const res = await loadVocabulary(key);
+        if (token !== vocabToken) return;
+        const pool = buildPool(res.words);
+        vocab = { key, pool, index: buildCharIndex(pool), error: res.error, fallback: res.fallback };
+        els.startBtn.textContent = 'Start flying 🐉';
+        if (!pool.length) {
+          setStatus('No playable words found — each word needs 1–6 Chinese characters in column A.', 'error');
+          return;
+        }
+        if (res.fallback) {
+          setStatus(`Couldn't load “${getLevelLabel(key)}”: ${res.error} — you can still play with the built-in ${pool.length}-word sample.`, 'warn');
+        } else {
+          setStatus(`${pool.length} words ready from “${getLevelLabel(key)}”.`, 'ok');
+        }
+        els.startBtn.disabled = false;
+        updateBestNote();
+      }
+
+      function updateBestNote() {
+        const diff = formValue('diff') || settings.diff;
+        const best = vocab.key ? getBest(vocab.key, diff) : 0;
+        els.bestNote.textContent = best ? `Your best on ${getLevelLabel(vocab.key)} · ${DIFFICULTY[diff].label}: ${best}` : '';
+      }
+
+      /* ======================================================================
+         7. Game state
+         ====================================================================== */
+      let G = null;           // the current run (null on the setup screen)
+      let lastRun = null;     // kept for the game-over scroll's 🔊 buttons
+      const view = { cell: 32, w: 0, h: 0, dpr: 1 };
+      const sprites = {};
+      let rafId = 0;
+      let lastFrame = 0;
+      let overTimer = 0;
+      let toastTimer = 0;
+
+      function newSeg(x, y, char, born) {
+        return { x, y, px: x, py: y, char, born, flashUntil: 0 };
+      }
+
+      function startGame() {
+        if (!vocab.pool.length) return;
+        readSettingsFromForm();
+        Sfx.unlock();
+        clearTimeout(overTimer);
+        const cfg = DIFFICULTY[settings.diff];
+        showScreen('game');
+        window.scrollTo(0, 0);
+        const { cols, rows } = chooseGrid();
+        G = {
+          levelKey: vocab.key, pool: vocab.pool, index: vocab.index,
+          mode: settings.mode === 'listen' && !voiceAvailable ? 'meaning' : settings.mode,
+          diff: settings.diff, cfg, voice: voiceAvailable && settings.voice,
+          cols, rows,
+          segs: [], dir: DIRS.up, queue: [],
+          pearls: [], orb: null, particles: [], floaters: [],
+          hearts: START_HEARTS, score: 0, spelled: 0, streak: 0, bestStreak: 0,
+          word: null, seen: [], wordQueue: [], lastWord: null,
+          phase: 'ready', resumePhase: null, phaseUntil: 0, readyLabel: null,
+          time: 0, acc: 0, stepMs: cfg.baseStep, steps: 0,
+          slowUntil: 0, shakeUntil: 0, shakeMag: 0, roarUntil: 0, chompUntil: 0,
+          nextOrbAt: randBetween(14000, 22000),
+          ambient: makeAmbient(cols, rows),
+          effectsHtml: null,
+        };
+        lastRun = G;
+        G.segs = Array.from({ length: START_LENGTH }, () => newSeg(0, 0, null, -1000));
+        els.stage.classList.toggle('is-wrap', cfg.wrap);
+        els.pauseOverlay.hidden = true;
+        els.banner.hidden = true;
+        els.powerToast.hidden = true;
+        layout();
+        layoutDragon();
+        startWord(true);
+        renderHud();
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        cancelAnimationFrame(rafId);
+        lastFrame = performance.now();
+        rafId = requestAnimationFrame(frame);
+      }
+
+      function currentStepMs() {
+        const { cfg } = G;
+        const base = Math.max(cfg.minStep, cfg.baseStep - cfg.ramp * G.spelled);
+        return G.slowUntil > G.time ? base * SLOW_FACTOR : base;
+      }
+
+      /* ======================================================================
+         8. Layout, sizing & pre-rendered sprites
+         ====================================================================== */
+      function availableBoardSize() {
+        const w = els.game.clientWidth;
+        const top = els.stage.getBoundingClientRect().top + window.scrollY;
+        const dpadH = els.dpad.offsetParent ? els.dpad.offsetHeight + 10 : 0;
+        const keysH = els.keysHint.offsetParent ? els.keysHint.offsetHeight + 10 : 0;
+        const padB = parseFloat(getComputedStyle(els.game.parentElement).paddingBottom) || 0;
+        return { w, h: Math.max(240, window.innerHeight - top - dpadH - keysH - padB - 6) };
+      }
+
+      /** Grid dimensions are fixed per run; only the cell size follows resizes. */
+      function chooseGrid() {
+        const { w, h } = availableBoardSize();
+        const target = clamp(w / 11, 28, 42);
+        return {
+          cols: clamp(Math.floor(w / target), 10, 20),
+          rows: clamp(Math.floor(h / target), 10, 18),
+        };
+      }
+
+      function layout() {
+        if (!G) return;
+        const { w, h } = availableBoardSize();
+        const cell = Math.max(14, Math.floor(Math.min(w / G.cols, h / G.rows)));
+        view.cell = cell;
+        view.w = cell * G.cols;
+        view.h = cell * G.rows;
+        view.dpr = Math.min(window.devicePixelRatio || 1, 3);
+        els.canvas.style.width = `${view.w}px`;
+        els.canvas.style.height = `${view.h}px`;
+        els.canvas.width = Math.round(view.w * view.dpr);
+        els.canvas.height = Math.round(view.h * view.dpr);
+        els.stage.style.width = `${view.w}px`;
+        buildSprites();
+      }
+
+      function makeSprite(w, h, draw) {
+        const cv = document.createElement('canvas');
+        cv.width = Math.ceil(w * view.dpr);
+        cv.height = Math.ceil(h * view.dpr);
+        const g = cv.getContext('2d');
+        g.scale(view.dpr, view.dpr);
+        draw(g, w, h);
+        return cv;
+      }
+
+      function orbSprite(size, glow, stops) {
+        return makeSprite(size, size, (g, S) => {
+          const r = S * 0.31;
+          const c = S / 2;
+          const halo = g.createRadialGradient(c, c, r * 0.6, c, c, S / 2);
+          halo.addColorStop(0, glow);
+          halo.addColorStop(1, 'rgba(0,0,0,0)');
+          g.fillStyle = halo;
+          g.fillRect(0, 0, S, S);
+          const body = g.createRadialGradient(c - r * 0.35, c - r * 0.4, r * 0.05, c, c, r);
+          stops.forEach(([o, col]) => body.addColorStop(o, col));
+          g.fillStyle = body;
+          g.beginPath(); g.arc(c, c, r, 0, TAU); g.fill();
+          g.strokeStyle = 'rgba(255,255,255,0.55)';
+          g.lineWidth = Math.max(1, S * 0.02);
+          g.stroke();
+        });
+      }
+
+      function buildSprites() {
+        const c = view.cell;
+        sprites.pearlSize = c * 1.5;
+        sprites.pearl = orbSprite(sprites.pearlSize, 'rgba(140,190,255,0.42)',
+          [[0, '#ffffff'], [0.35, '#eef4ff'], [0.8, '#bccff5'], [1, '#8aa7e2']]);
+        sprites.orb = orbSprite(sprites.pearlSize, 'rgba(255,200,70,0.6)',
+          [[0, '#fffbe0'], [0.35, '#ffe07a'], [0.8, '#f5b82e'], [1, '#c47d0c']]);
+        sprites.cloud = makeSprite(c * 4, c * 1.6, (g, W, H) => {
+          [[0.3, 0.6, 0.3], [0.52, 0.45, 0.36], [0.72, 0.62, 0.28], [0.5, 0.7, 0.4]].forEach(([fx, fy, fr]) => {
+            const r = W * fr * 0.55;
+            const grad = g.createRadialGradient(W * fx, H * fy, 0, W * fx, H * fy, r);
+            grad.addColorStop(0, 'rgba(200,214,240,0.55)');
+            grad.addColorStop(1, 'rgba(200,214,240,0)');
+            g.fillStyle = grad;
+            g.fillRect(0, 0, W, H);
+          });
+        });
+        sprites.lantern = makeSprite(c * 1.4, c * 1.8, (g, W, H) => {
+          const cx = W / 2; const cy = H * 0.45;
+          const glow = g.createRadialGradient(cx, cy, 0, cx, cy, W * 0.7);
+          glow.addColorStop(0, 'rgba(255,150,60,0.55)');
+          glow.addColorStop(1, 'rgba(255,150,60,0)');
+          g.fillStyle = glow; g.fillRect(0, 0, W, H);
+          g.fillStyle = '#d8402c';
+          g.beginPath(); g.ellipse(cx, cy, W * 0.24, H * 0.2, 0, 0, TAU); g.fill();
+          g.fillStyle = '#ffb347';
+          g.fillRect(cx - W * 0.12, cy - H * 0.22, W * 0.24, H * 0.04);
+          g.fillRect(cx - W * 0.12, cy + H * 0.18, W * 0.24, H * 0.04);
+          g.strokeStyle = 'rgba(255,190,90,0.8)'; g.lineWidth = Math.max(1, W * 0.03);
+          g.beginPath(); g.moveTo(cx, cy + H * 0.22); g.lineTo(cx, cy + H * 0.36); g.stroke();
+        });
+        sprites.bg = makeSprite(view.w, view.h, drawStaticBackground);
+      }
+
+      function drawStaticBackground(g, W, H) {
+        const c = view.cell;
+        const sky = g.createLinearGradient(0, 0, 0, H);
+        sky.addColorStop(0, '#081232');
+        sky.addColorStop(0.55, '#10183f');
+        sky.addColorStop(1, '#1b1440');
+        g.fillStyle = sky;
+        g.fillRect(0, 0, W, H);
+        // Moon
+        const mx = W * 0.82; const my = H * 0.14; const mr = c * 0.9;
+        const moonGlow = g.createRadialGradient(mx, my, mr * 0.5, mx, my, mr * 4);
+        moonGlow.addColorStop(0, 'rgba(255,236,190,0.22)');
+        moonGlow.addColorStop(1, 'rgba(255,236,190,0)');
+        g.fillStyle = moonGlow; g.fillRect(0, 0, W, H);
+        g.fillStyle = 'rgba(255,240,205,0.85)';
+        g.beginPath(); g.arc(mx, my, mr, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(8,18,50,0.9)';
+        g.beginPath(); g.arc(mx + mr * 0.45, my - mr * 0.2, mr * 0.9, 0, TAU); g.fill();
+        // Ink-wash mountains
+        [['rgba(40,70,110,0.28)', 0.8, 1.3, 0.14], ['rgba(20,40,70,0.45)', 0.9, 2.1, 0.1]].forEach(([col, base, freq, amp], k) => {
+          g.fillStyle = col;
+          g.beginPath();
+          g.moveTo(0, H);
+          for (let x = 0; x <= W; x += 6) {
+            const u = x / W;
+            const y = H * base - H * amp * (0.5 + 0.5 * Math.sin(u * TAU * freq + k * 2.3)) * (0.7 + 0.3 * Math.sin(u * 17 + k));
+            g.lineTo(x, y);
+          }
+          g.lineTo(W, H);
+          g.closePath();
+          g.fill();
+        });
+        // Grid dots
+        g.fillStyle = 'rgba(255,255,255,0.07)';
+        for (let y = 0; y < G.rows; y++) {
+          for (let x = 0; x < G.cols; x++) {
+            g.beginPath(); g.arc((x + 0.5) * c, (y + 0.5) * c, Math.max(1, c * 0.04), 0, TAU); g.fill();
+          }
+        }
+        // Vignette
+        const vig = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+        vig.addColorStop(0, 'rgba(0,0,0,0)');
+        vig.addColorStop(1, 'rgba(0,0,10,0.45)');
+        g.fillStyle = vig;
+        g.fillRect(0, 0, W, H);
+      }
+
+      function makeAmbient(cols, rows) {
+        const r = Math.random;
+        return {
+          stars: Array.from({ length: Math.round(cols * rows / 6) }, () => ({ x: r() * cols, y: r() * rows * 0.8, s: 0.02 + r() * 0.035, p: r() * TAU })),
+          clouds: Array.from({ length: 4 }, () => ({ x: r() * cols, y: 0.5 + r() * (rows - 3), v: 0.08 + r() * 0.1, a: 0.12 + r() * 0.1, k: 0.8 + r() * 0.6 })),
+          lanterns: Array.from({ length: 3 }, () => ({ x: 1 + r() * (cols - 2), y: r() * rows, v: 0.15 + r() * 0.12, p: r() * TAU })),
+        };
+      }
+
+      /* ======================================================================
+         9. Board helpers (occupancy, spawning, dragon placement)
+         ====================================================================== */
+      const inBounds = (x, y) => x >= 0 && y >= 0 && x < G.cols && y < G.rows;
+
+      function occupancy() {
+        const occ = new Uint8Array(G.cols * G.rows);
+        for (const s of G.segs) if (inBounds(s.x, s.y)) occ[s.y * G.cols + s.x] = 1;
+        for (const p of G.pearls) if (p.x >= 0) occ[p.y * G.cols + p.x] = 2;
+        if (G.orb) occ[G.orb.y * G.cols + G.orb.x] = 2;
+        return occ;
+      }
+
+      function cellFree(x, y) {
+        return inBounds(x, y) && occupancy()[y * G.cols + x] === 0;
+      }
+
+      /** A random empty cell away from the dragon's head and its path; spaced out from other pearls. */
+      function freeCell() {
+        const { cols, rows } = G;
+        const occ = occupancy();
+        const head = G.segs[0];
+        const ahead = new Set();
+        for (let k = 1; k <= 4; k++) {
+          let ax = head.x + G.dir.x * k;
+          let ay = head.y + G.dir.y * k;
+          if (G.cfg.wrap) { ax = (ax + cols) % cols; ay = (ay + rows) % rows; }
+          if (inBounds(ax, ay)) ahead.add(ay * cols + ax);
+        }
+        const nearPearl = (x, y) => {
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (inBounds(x + dx, y + dy) && occ[(y + dy) * cols + x + dx] === 2) return true;
+            }
+          }
+          return false;
+        };
+        const strict = [];
+        const loose = [];
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const i = y * cols + x;
+            if (occ[i] || ahead.has(i)) continue;
+            if (Math.abs(x - head.x) <= 2 && Math.abs(y - head.y) <= 2) continue;
+            loose.push(i);
+            const edge = !G.cfg.wrap && (x === 0 || y === 0 || x === cols - 1 || y === rows - 1);
+            if (!edge && !nearPearl(x, y)) strict.push(i);
+          }
+        }
+        const list = strict.length ? strict : loose;
+        if (!list.length) return null;
+        const i = list[Math.floor(Math.random() * list.length)];
+        return { x: i % cols, y: Math.floor(i / cols) };
+      }
+
+      function addPearl(char, syl, target) {
+        const cell = freeCell();
+        if (!cell) return;
+        G.pearls.push({ ...cell, rx: cell.x, ry: cell.y, char, syl, target, born: G.time, seed: Math.random() * TAU, hintUntil: 0 });
+      }
+
+      function relocatePearl(p) {
+        p.x = -1; p.y = -1;
+        const cell = freeCell();
+        if (!cell) { G.pearls.splice(G.pearls.indexOf(p), 1); return; }
+        Object.assign(p, cell, { rx: cell.x, ry: cell.y, born: G.time });
+      }
+
+      /**
+       * Lay the dragon out safely near the bottom, facing up into open sky: the
+       * body lies along the ground and the head rises one cell above its end,
+       * so the neck is really behind the head and left/right are both open turns.
+       */
+      function layoutDragon() {
+        const { cols, rows, segs } = G;
+        const perRow = cols - 2;
+        const maxLen = perRow * Math.max(1, rows - 6) + 1;
+        if (segs.length > maxLen) segs.length = maxLen;
+        const n = segs.length - 1; // body cells behind the head
+        const cells = [];
+        let row = rows - 2;
+        if (n <= perRow) {
+          const x0 = Math.floor((cols - n) / 2);
+          for (let i = 0; i < n; i++) cells.push({ x: x0 + i, y: row });
+        } else {
+          let x = 1;
+          let dirX = 1;
+          for (let i = 0; i < n; i++) {
+            cells.push({ x, y: row });
+            const nx = x + dirX;
+            if (nx < 1 || nx > cols - 2) { row--; dirX = -dirX; } else x = nx;
+          }
+        }
+        const end = cells.length ? cells[cells.length - 1] : { x: Math.floor(cols / 2), y: rows - 1 };
+        cells.push({ x: end.x, y: end.y - 1 });
+        cells.reverse().forEach((p, i) => Object.assign(segs[i], { x: p.x, y: p.y, px: p.x, py: p.y }));
+        G.dir = DIRS.up;
+        G.queue = [];
+        const head = segs[0];
+        const blocked = (x, y) => segs.some(s => s.x === x && s.y === y) || (x === head.x && y < head.y && y >= head.y - 4);
+        G.pearls.slice().forEach(p => { if (blocked(p.x, p.y)) relocatePearl(p); });
+        if (G.orb && blocked(G.orb.x, G.orb.y)) G.orb = null;
+      }
+
+      /* ======================================================================
+         10. Words & decoys
+         ====================================================================== */
+      function nextWord() {
+        let w = null;
+        for (let tries = 0; tries < 3; tries++) {
+          if (!G.wordQueue.length) G.wordQueue = pickStudyWords(G.pool, Math.min(30, G.pool.length), G.levelKey);
+          w = G.wordQueue.shift();
+          if (w !== G.lastWord || G.pool.length === 1) break;
+        }
+        G.lastWord = w;
+        return w;
+      }
+
+      /** Decoys: chars from words sharing a character with the target, then same-length words, then anything. */
+      function pickDecoys(w, n) {
+        const { pool, index } = G;
+        const banned = new Set(w.chars);
+        const out = [];
+        const take = c => {
+          if (out.length < n && c && !banned.has(c)) { banned.add(c); out.push(c); }
+        };
+        const related = [];
+        for (const ch of new Set(w.chars)) {
+          for (const i of (index.byChar.get(ch) || []).slice(0, 80)) if (pool[i] !== w) related.push(...pool[i].chars);
+        }
+        const half = Math.ceil(n / 2);
+        shuffleArray(related).forEach(c => { if (out.length < half) take(c); });
+        const same = index.byLen.get(w.chars.length) || [];
+        for (let k = 0; k < 40 && out.length < n && same.length > 1; k++) {
+          const o = pool[same[Math.floor(Math.random() * same.length)]];
+          if (o !== w) take(o.chars[Math.floor(Math.random() * o.chars.length)]);
+        }
+        for (let k = 0; k < 80 && out.length < n; k++) take(index.chars[Math.floor(Math.random() * index.chars.length)]);
+        return out;
+      }
+
+      function spawnPearls() {
+        const w = G.word.w;
+        G.pearls = [];
+        w.chars.forEach((ch, i) => addPearl(ch, w.aligned ? w.aligned[i] : (G.index.syl.get(ch) || null), true));
+        pickDecoys(w, G.cfg.decoys).forEach(ch => addPearl(ch, G.index.syl.get(ch) || null, false));
+      }
+
+      function nextChar() {
+        return G.word ? G.word.w.chars[G.word.progress] : null;
+      }
+
+      function nextTargetPearl() {
+        const want = nextChar();
+        const head = G.segs[0];
+        let best = null;
+        let bestD = Infinity;
+        for (const p of G.pearls) {
+          if (p.char !== want) continue;
+          const d = Math.abs(p.x - head.x) + Math.abs(p.y - head.y);
+          if (d < bestD) { bestD = d; best = p; }
+        }
+        return best;
+      }
+
+      /* ======================================================================
+         11. Round flow: words, eating, mistakes, crashes, power-ups
+         ====================================================================== */
+      function startWord(first) {
+        els.banner.hidden = true;
+        const w = nextWord();
+        const entry = { w, status: 'missed' };
+        G.seen.push(entry);
+        const delay = first ? FIRST_COUNTDOWN : 700;
+        G.word = { w, entry, progress: 0, mistakes: 0, crashed: false, reveal: false, magnet: false, start: G.time + delay };
+        spawnPearls();
+        if (!first && !G.orb && Math.random() < 0.3) spawnOrb();
+        renderPrompt();
+        renderProgress();
+        G.phase = 'ready';
+        G.phaseUntil = G.time + delay;
+        G.readyLabel = first ? 'count' : null;
+        if (G.mode === 'listen') speakChinese(w.vocab);
+        announce(G.mode === 'listen' ? 'New word — listen and spell it.' : `New word: ${promptText(w)}. ${w.chars.length} characters.`);
+      }
+
+      function eatCorrect(pearl) {
+        const word = G.word;
+        G.pearls.splice(G.pearls.indexOf(pearl), 1);
+        word.progress++;
+        G.chompUntil = G.time + 160;
+        Sfx.chime(word.progress - 1);
+        burst(pearl.x + 0.5, pearl.y + 0.5, '#ffe08a', 14, 3.5);
+        renderProgress();
+        if (word.progress >= word.w.chars.length) completeWord();
+      }
+
+      function eatWrong(pearl) {
+        const word = G.word;
+        if (!word.mistakes) recordAnswer(G.levelKey, word.w.vocab, false);
+        word.mistakes++;
+        G.streak = 0;
+        G.hearts--;
+        floater(`✗ ${pearl.char}`, pearl.x + 0.5, pearl.y + 0.2, '#ff7a7a');
+        burst(pearl.x + 0.5, pearl.y + 0.5, '#ff6b6b', 12, 3);
+        if (pearl.target) relocatePearl(pearl);
+        else G.pearls.splice(G.pearls.indexOf(pearl), 1);
+        coughSegments(2);
+        const hint = nextTargetPearl();
+        if (hint) hint.hintUntil = G.time + 2400;
+        Sfx.cough();
+        shake(0.14);
+        renderHud();
+        announce(`Wrong character ${pearl.char}. Next is the one that glows. ${G.hearts} hearts left.`);
+        if (G.hearts <= 0) gameOver();
+      }
+
+      function completeWord() {
+        const word = G.word;
+        const len = word.w.chars.length;
+        const perfect = !word.mistakes && !word.crashed;
+        if (!word.mistakes) recordAnswer(G.levelKey, word.w.vocab, true);
+        word.entry.status = word.mistakes ? 'slip' : 'perfect';
+        G.spelled++;
+        G.streak = perfect ? G.streak + 1 : 0;
+        G.bestStreak = Math.max(G.bestStreak, G.streak);
+        const mult = perfect ? streakMult(G.streak) : 1;
+        const secs = Math.max(0, (G.time - word.start) / 1000);
+        const points = Math.round((50 * len + Math.max(0, Math.round(len * 40 - secs * 6))) * mult);
+        G.score += points;
+        for (let i = 1; i <= len && i < G.segs.length; i++) G.segs[i].flashUntil = G.time + 1300;
+        G.roarUntil = G.time + 700;
+        Sfx.roar();
+        if (G.voice) speakChinese(word.w.vocab);
+        showBanner(word.w, points, mult);
+        els.progress.classList.add('is-complete');
+        G.pearls.forEach(p => burst(p.x + 0.5, p.y + 0.5, 'rgba(190,210,255,0.9)', 5, 2));
+        G.pearls = [];
+        shedToCap();
+        const h = G.segs[0];
+        burst(h.x + 0.5, h.y + 0.5, '#f5c542', 26, 5);
+        floater(`+${points}`, h.x + 0.5, h.y - 0.3, '#f5c542', 0.7);
+        G.phase = 'celebrate';
+        G.phaseUntil = G.time + CELEBRATE_MS;
+        renderHud();
+        announce(`Spelled ${word.w.vocab}, ${word.w.pinyin}, ${word.w.meaning}. Plus ${points} points.`);
+      }
+
+      /** Throw tail segments off (never the head or the current word's characters). */
+      function coughSegments(n) {
+        const keep = Math.max(START_LENGTH, 2 + (G.word ? G.word.progress : 0));
+        const count = Math.min(n, Math.max(0, G.segs.length - keep));
+        for (let k = 0; k < count; k++) flingSegment(G.segs.pop());
+      }
+
+      /** Keep very long dragons playable: old words drift away from the tail as a word completes. */
+      function shedToCap() {
+        const cap = Math.max(10, Math.floor(G.cols * G.rows * 0.2));
+        while (G.segs.length > cap) flingSegment(G.segs.pop());
+      }
+
+      function crash(kind) {
+        G.hearts--;
+        G.streak = 0;
+        G.word.crashed = true;
+        const h = G.segs[0];
+        burst(h.x + 0.5, h.y + 0.5, '#ffffff', 18, 4);
+        floater(kind === 'wall' ? 'Bonk!' : 'Tangled!', h.x + 0.5, h.y + 0.2, '#ff9a7a', 0.6);
+        Sfx.crash();
+        shake(0.28);
+        renderHud();
+        if (G.hearts <= 0) { gameOver(); return; }
+        announce(`${kind === 'wall' ? 'Hit the wall' : 'Bit your own tail'}. ${G.hearts} hearts left.`);
+        layoutDragon();
+        G.acc = 0;
+        G.phase = 'ready';
+        G.phaseUntil = G.time + 1100;
+        G.readyLabel = 'Ready…';
+      }
+
+      function spawnOrb() {
+        const cell = freeCell();
+        if (cell) G.orb = { ...cell, born: G.time, expires: G.time + ORB_LIFETIME };
+      }
+
+      function updateOrb() {
+        if (G.orb && G.time > G.orb.expires) {
+          G.orb = null;
+          G.nextOrbAt = G.time + randBetween(14000, 24000);
+        } else if (!G.orb && G.time >= G.nextOrbAt) {
+          spawnOrb();
+          G.nextOrbAt = G.time + randBetween(18000, 28000);
+        }
+      }
+
+      function collectOrb() {
+        const orb = G.orb;
+        G.orb = null;
+        G.nextOrbAt = G.time + randBetween(16000, 26000);
+        const options = Object.keys(POWERS).filter(k =>
+          !(k === 'heart' && G.hearts >= MAX_HEARTS) && !(k === 'reveal' && G.word.reveal) && !(k === 'magnet' && G.word.magnet));
+        const type = G.hearts <= 1 && options.includes('heart') && Math.random() < 0.5
+          ? 'heart' : options[Math.floor(Math.random() * options.length)];
+        if (type === 'slow') G.slowUntil = G.time + SLOW_MS;
+        else if (type === 'reveal') G.word.reveal = true;
+        else if (type === 'magnet') G.word.magnet = true;
+        else if (type === 'heart') G.hearts = Math.min(MAX_HEARTS, G.hearts + 1);
+        Sfx.power();
+        burst(orb.x + 0.5, orb.y + 0.5, '#ffd24a', 22, 4.5);
+        showPowerToast(POWERS[type]);
+        renderHud();
+        announce(`Dragon pearl: ${POWERS[type].label}`);
+      }
+
+      /** Magnet: the next needed pearl drifts one cell toward the head. */
+      function magnetPull() {
+        const p = nextTargetPearl();
+        if (!p) return;
+        const h = G.segs[0];
+        const dx = h.x - p.x;
+        const dy = h.y - p.y;
+        if (Math.abs(dx) + Math.abs(dy) <= 1) return;
+        const moves = Math.abs(dx) >= Math.abs(dy) ? [[Math.sign(dx), 0], [0, Math.sign(dy)]] : [[0, Math.sign(dy)], [Math.sign(dx), 0]];
+        for (const [mx, my] of moves) {
+          if ((mx || my) && cellFree(p.x + mx, p.y + my)) { p.x += mx; p.y += my; return; }
+        }
+      }
+
+      function gameOver() {
+        if (G.phase === 'over') return;
+        G.phase = 'over';
+        els.pauseOverlay.hidden = true;
+        const h = G.segs[0];
+        burst(h.x + 0.5, h.y + 0.5, '#ff6b6b', 30, 5);
+        Sfx.over();
+        announce('Game over.');
+        overTimer = setTimeout(showGameOver, reduced() ? 400 : 1200);
+      }
+
+      /* ======================================================================
+         12. Simulation step (one grid move)
+         ====================================================================== */
+      function step() {
+        G.steps++;
+        if (G.queue.length) {
+          const d = G.queue.shift();
+          if (!intoNeck(d)) G.dir = d;
+        }
+        const head = G.segs[0];
+        let nx = head.x + G.dir.x;
+        let ny = head.y + G.dir.y;
+        if (G.cfg.wrap) {
+          nx = (nx + G.cols) % G.cols;
+          ny = (ny + G.rows) % G.rows;
+        } else if (!inBounds(nx, ny)) {
+          crash('wall');
+          return;
+        }
+        const pearl = G.pearls.find(p => p.x === nx && p.y === ny) || null;
+        const grow = !!pearl && pearl.char === nextChar();
+        // When growing the tail stays put, so the whole body blocks; otherwise the tail cell frees up.
+        const blocking = grow ? G.segs.length : G.segs.length - 1;
+        for (let i = 1; i < blocking; i++) {
+          if (G.segs[i].x === nx && G.segs[i].y === ny) { crash('self'); return; }
+        }
+        moveDragon(nx, ny, grow ? { char: pearl.char, at: 1 + G.word.progress } : null);
+        if (pearl) {
+          if (grow) eatCorrect(pearl); else eatWrong(pearl);
+        }
+        if (G.phase === 'play' && G.orb && G.orb.x === nx && G.orb.y === ny) collectOrb();
+        if (G.phase === 'play' && G.word.magnet && G.steps % 2 === 0) magnetPull();
+      }
+
+      /**
+       * Advance the dragon one cell. When growing, a new character segment is
+       * inserted right behind the current word's earlier characters, so the
+       * body reads the word in order from the head; segments behind the
+       * insertion point wait one beat (exactly how a growing snake looks).
+       */
+      function moveDragon(nx, ny, insert) {
+        const segs = G.segs;
+        const old = segs.map(s => ({ x: s.x, y: s.y }));
+        const moving = insert ? Math.min(insert.at, segs.length) : segs.length;
+        for (const s of segs) { s.px = s.x; s.py = s.y; }
+        segs[0].x = nx;
+        segs[0].y = ny;
+        for (let i = 1; i < moving; i++) { segs[i].x = old[i - 1].x; segs[i].y = old[i - 1].y; }
+        if (insert) {
+          const p = old[moving - 1];
+          segs.splice(moving, 0, newSeg(p.x, p.y, insert.char, G.time));
+        }
+      }
+
+      /* ======================================================================
+         13. Effects: particles, floaters, shake
+         ====================================================================== */
+      function burst(x, y, color, count, speed) {
+        const n = reduced() ? Math.ceil(count / 4) : count;
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * TAU;
+          const v = speed * (0.35 + Math.random() * 0.8);
+          G.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0, life: 0, max: 450 + Math.random() * 400, r: 0.04 + Math.random() * 0.07, color });
+        }
+      }
+
+      function flingSegment(s) {
+        if (!s) return;
+        const a = Math.random() * TAU;
+        G.particles.push({
+          x: s.x + 0.5, y: s.y + 0.5, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3 - 3, g: 9, life: 0, max: 900,
+          r: s.char ? 0.42 : 0.34, seg: true, char: s.char, rot: 0, vr: (Math.random() - 0.5) * 8,
+        });
+      }
+
+      function floater(text, x, y, color, size = 0.5) {
+        G.floaters.push({ text, x, y, color, size, life: 0, max: 1100 });
+      }
+
+      function shake(mag) {
+        if (reduced()) return;
+        G.shakeUntil = G.time + 320;
+        G.shakeMag = mag;
+      }
+
+      function updateEffects(dt) {
+        const s = dt / 1000;
+        for (const p of G.particles) {
+          p.life += dt;
+          p.x += p.vx * s;
+          p.y += p.vy * s;
+          p.vy += p.g * s;
+          p.vx *= 0.985; if (!p.g) p.vy *= 0.985;
+          if (p.seg) p.rot += p.vr * s;
+        }
+        G.particles = G.particles.filter(p => p.life < p.max);
+        for (const f of G.floaters) { f.life += dt; f.y -= 0.9 * s; }
+        G.floaters = G.floaters.filter(f => f.life < f.max);
+        const k = Math.min(1, dt / 90);
+        for (const p of G.pearls) { p.rx += (p.x - p.rx) * k; p.ry += (p.y - p.ry) * k; }
+      }
+
+      /* ======================================================================
+         14. Rendering
+         ====================================================================== */
+      function interpT() {
+        return clamp(G.acc / G.stepMs, 0, 1);
+      }
+
+      function segPoint(s, t) {
+        const c = view.cell;
+        let px = s.px;
+        let py = s.py;
+        if (s.x - px > 1) px += G.cols; else if (s.x - px < -1) px -= G.cols;
+        if (s.y - py > 1) py += G.rows; else if (s.y - py < -1) py -= G.rows;
+        return { x: (px + (s.x - px) * t + 0.5) * c, y: (py + (s.y - py) * t + 0.5) * c };
+      }
+
+      function segRadius(s, i, n) {
+        const c = view.cell;
+        if (i === 0) return c * 0.42;
+        if (s.char) return c * 0.43;
+        const k = n - 1 - i;
+        return c * 0.36 * (k === 0 ? 0.55 : k === 1 ? 0.74 : k === 2 ? 0.9 : 1);
+      }
+
+      function render(now) {
+        const { cell: c, w, h, dpr } = view;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        ctx.save();
+        if (G.shakeUntil > G.time) {
+          const m = G.shakeMag * c * ((G.shakeUntil - G.time) / 320);
+          ctx.translate((Math.random() - 0.5) * 2 * m, (Math.random() - 0.5) * 2 * m);
+        }
+        ctx.drawImage(sprites.bg, 0, 0, w, h);
+        drawAmbient(reduced() ? 0 : now / 1000);
+        drawPearls();
+        drawOrb();
+        drawDragon();
+        drawParticles();
+        drawFloaters();
+        ctx.restore();
+        drawReadyLabel();
+      }
+
+      function drawAmbient(t) {
+        const c = view.cell;
+        const { stars, clouds, lanterns } = G.ambient;
+        ctx.fillStyle = '#ffffff';
+        for (const s of stars) {
+          ctx.globalAlpha = 0.25 + 0.5 * Math.abs(Math.sin(t * 1.2 + s.p));
+          ctx.fillRect(s.x * c, s.y * c, s.s * c, s.s * c);
+        }
+        const cw = c * 4;
+        for (const cl of clouds) {
+          const span = G.cols + 5;
+          const x = ((cl.x + t * cl.v) % span + span) % span - 4;
+          ctx.globalAlpha = cl.a;
+          ctx.drawImage(sprites.cloud, x * c, cl.y * c, cw * cl.k, c * 1.6 * cl.k);
+        }
+        ctx.globalAlpha = 0.5;
+        for (const l of lanterns) {
+          const span = G.rows + 3;
+          const y = ((l.y - t * l.v) % span + span) % span - 2;
+          const x = l.x + Math.sin(t * 0.8 + l.p) * 0.3;
+          ctx.drawImage(sprites.lantern, x * c, y * c, c * 0.9, c * 1.15);
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawPearls() {
+        const c = view.cell;
+        const S = sprites.pearlSize;
+        const time = G.time;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const p of G.pearls) {
+          const sc = easeOutBack(clamp((time - p.born) / 280, 0, 1));
+          if (sc < 0.05) continue;
+          const cx = (p.rx + 0.5) * c;
+          const cy = (p.ry + 0.5) * c + (reduced() ? 0 : Math.sin(time / 380 + p.seed) * c * 0.05);
+          if (p.hintUntil > time) {
+            const u = (time % 700) / 700;
+            ctx.strokeStyle = `rgba(245,197,66,${0.9 - u * 0.8})`;
+            ctx.lineWidth = Math.max(2, c * 0.08);
+            ctx.beginPath(); ctx.arc(cx, cy, c * (0.5 + u * 0.35), 0, TAU); ctx.stroke();
+          }
+          ctx.drawImage(sprites.pearl, cx - (S * sc) / 2, cy - (S * sc) / 2, S * sc, S * sc);
+          ctx.fillStyle = '#16204a';
+          ctx.font = `700 ${Math.round(c * 0.54 * sc)}px ${CJK_FONT}`;
+          ctx.fillText(p.char, cx, cy + c * 0.03);
+          if (G.word && G.word.reveal && p.syl) drawSyllable(p.syl, cx, cy);
+        }
+      }
+
+      function drawSyllable(syl, cx, cy) {
+        const c = view.cell;
+        const off = c * 0.62;
+        const y = cy - off < c * 0.2 ? cy + off : cy - off;
+        ctx.font = `700 ${Math.max(10, Math.round(c * 0.32))}px Inter, sans-serif`;
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(6,13,31,0.9)';
+        ctx.strokeText(syl.syl, cx, y);
+        ctx.fillStyle = TONE_COLORS[syl.tone] || '#ffffff';
+        ctx.fillText(syl.syl, cx, y);
+      }
+
+      function drawOrb() {
+        const o = G.orb;
+        if (!o) return;
+        const c = view.cell;
+        const time = G.time;
+        const left = o.expires - time;
+        if (left < 3000 && Math.floor(time / 150) % 2 === 0) return; // blink before vanishing
+        const S = sprites.pearlSize * (1 + (reduced() ? 0 : Math.sin(time / 200) * 0.06));
+        const sc = easeOutBack(clamp((time - o.born) / 300, 0, 1));
+        const cx = (o.x + 0.5) * c;
+        const cy = (o.y + 0.5) * c;
+        ctx.drawImage(sprites.orb, cx - (S * sc) / 2, cy - (S * sc) / 2, S * sc, S * sc);
+        // Swirling flame tongues
+        ctx.strokeStyle = 'rgba(200,60,20,0.75)';
+        ctx.lineWidth = Math.max(1.5, c * 0.06);
+        ctx.lineCap = 'round';
+        const spin = reduced() ? 0 : time / 400;
+        for (let k = 0; k < 3; k++) {
+          const a = spin + k * (TAU / 3);
+          ctx.beginPath();
+          ctx.arc(cx, cy, c * 0.26 * sc, a, a + 1.1);
+          ctx.stroke();
+        }
+      }
+
+      function drawDragon() {
+        const c = view.cell;
+        const segs = G.segs;
+        const n = segs.length;
+        const time = G.time;
+        const t = interpT();
+        const pts = segs.map(s => segPoint(s, t));
+        const rad = segs.map((s, i) => segRadius(s, i, n) * easeOutBack(clamp((time - s.born) / 220, 0, 1)));
+        const linked = i => Math.hypot(pts[i].x - pts[i + 1].x, pts[i].y - pts[i + 1].y) < c * 1.5;
+
+        drawTailFin(pts, rad, time);
+        drawLegs(pts, time);
+
+        // Body tube in three passes (outline, jade fill, sheen), tail first.
+        const tube = (fill, grow, scale, off) => {
+          ctx.fillStyle = fill;
+          ctx.beginPath();
+          for (let i = n - 1; i >= 0; i--) {
+            const r = Math.max(0, rad[i] * scale + grow);
+            ctx.moveTo(pts[i].x + off + r, pts[i].y + off);
+            ctx.arc(pts[i].x + off, pts[i].y + off, r, 0, TAU);
+            if (i < n - 1 && linked(i)) {
+              const mr = Math.max(0, Math.min(rad[i], rad[i + 1]) * scale + grow);
+              const mx = (pts[i].x + pts[i + 1].x) / 2 + off;
+              const my = (pts[i].y + pts[i + 1].y) / 2 + off;
+              ctx.moveTo(mx + mr, my);
+              ctx.arc(mx, my, mr, 0, TAU);
+            }
+          }
+          ctx.fill();
+        };
+        tube('#0a3d33', Math.max(1.5, c * 0.05), 1, 0);
+        tube('#1f9e7a', 0, 1, 0);
+        tube('rgba(150,255,210,0.22)', 0, 0.5, -c * 0.07);
+
+        // Scales & character plates.
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (let i = n - 1; i >= 1; i--) {
+          const s = segs[i];
+          const p = pts[i];
+          const r = rad[i];
+          if (r < 1) continue;
+          if (!s.char) {
+            const q = pts[i - 1];
+            const a = Math.atan2(q.y - p.y, q.x - p.x);
+            ctx.strokeStyle = 'rgba(245,197,66,0.55)';
+            ctx.lineWidth = Math.max(1, c * 0.04);
+            ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.62, a + Math.PI * 0.6, a + Math.PI * 1.4); ctx.stroke();
+            continue;
+          }
+          const flash = s.flashUntil > time;
+          const glow = flash ? 0.5 + 0.5 * Math.sin(time / 90) : 0;
+          if (flash) {
+            ctx.fillStyle = `rgba(245,197,66,${0.35 * glow})`;
+            ctx.beginPath(); ctx.arc(p.x, p.y, r * 1.45, 0, TAU); ctx.fill();
+          }
+          ctx.fillStyle = flash ? '#f5c542' : '#b3261e';
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
+          ctx.strokeStyle = flash ? '#fff3c4' : '#f5c542';
+          ctx.lineWidth = Math.max(1.5, c * 0.06);
+          ctx.stroke();
+          ctx.fillStyle = flash ? '#7a1b12' : '#ffe7a3';
+          ctx.font = `700 ${Math.round(r * 1.2)}px ${CJK_FONT}`;
+          ctx.fillText(s.char, p.x, p.y + c * 0.03);
+        }
+
+        // Head
+        const head = segs[0];
+        let ang = Math.atan2(G.dir.y, G.dir.x);
+        if (n > 1 && (head.px !== head.x || head.py !== head.y)) {
+          const dx = pts[0].x - pts[1].x;
+          const dy = pts[0].y - pts[1].y;
+          const d = Math.hypot(dx, dy);
+          if (d > c * 0.25 && d < c * 1.5) ang = Math.atan2(dy, dx);
+        }
+        const target = nextTargetPearl();
+        let look = { x: 1, y: 0 };
+        if (target) {
+          const vx = (target.rx + 0.5) * c - pts[0].x;
+          const vy = (target.ry + 0.5) * c - pts[0].y;
+          const lx = Math.cos(-ang) * vx - Math.sin(-ang) * vy;
+          const ly = Math.sin(-ang) * vx + Math.cos(-ang) * vy;
+          const l = Math.hypot(lx, ly) || 1;
+          look = { x: lx / l, y: ly / l };
+        }
+        const blinking = G.phase === 'ready' && G.readyLabel === 'Ready…' && Math.floor(time / 120) % 2 === 0;
+        if (!blinking) drawHead(pts[0].x, pts[0].y, ang, look, time, rad[0] / (c * 0.42));
+      }
+
+      function drawTailFin(pts, rad, time) {
+        const n = pts.length;
+        if (n < 2) return;
+        const c = view.cell;
+        const a = pts[n - 2];
+        const b = pts[n - 1];
+        const d = Math.hypot(b.x - a.x, b.y - a.y);
+        if (d < 1 || d > c * 1.5) return;
+        const bx = (b.x - a.x) / d;
+        const by = (b.y - a.y) / d;
+        const nx = -by;
+        const ny = bx;
+        const wag = reduced() ? 0 : Math.sin(time / 190) * 0.3;
+        const L = c * 0.75;
+        const r = rad[n - 1];
+        const tip = { x: b.x + bx * L + nx * wag * c * 0.5, y: b.y + by * L + ny * wag * c * 0.5 };
+        const grad = ctx.createLinearGradient(b.x, b.y, tip.x, tip.y);
+        grad.addColorStop(0, '#e8492f');
+        grad.addColorStop(1, '#ffb347');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(b.x + nx * r, b.y + ny * r);
+        ctx.quadraticCurveTo(b.x + bx * L * 0.5 + nx * c * 0.5, b.y + by * L * 0.5 + ny * c * 0.5, tip.x, tip.y);
+        ctx.quadraticCurveTo(b.x + bx * L * 0.5 - nx * c * 0.5, b.y + by * L * 0.5 - ny * c * 0.5, b.x - nx * r, b.y - ny * r);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function drawLegs(pts, time) {
+        const n = pts.length;
+        if (n < 4) return;
+        const c = view.cell;
+        const idxs = [...new Set([1, Math.max(2, Math.floor(n * 0.6))])].filter(i => i < n - 1);
+        ctx.strokeStyle = '#f5c542';
+        ctx.lineCap = 'round';
+        for (const i of idxs) {
+          const a = pts[i - 1];
+          const b = pts[i];
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (d < 1 || d > c * 1.5) continue;
+          const fx = (a.x - b.x) / d;
+          const fy = (a.y - b.y) / d;
+          for (const side of [-1, 1]) {
+            const swing = reduced() ? 0 : Math.sin(time / 110 + i * 1.7 + side) * 0.18;
+            const kx = b.x - fy * side * c * 0.58 + fx * c * swing;
+            const ky = b.y + fx * side * c * 0.58 + fy * c * swing;
+            ctx.lineWidth = Math.max(1.5, c * 0.08);
+            ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(kx, ky); ctx.stroke();
+            ctx.lineWidth = Math.max(1, c * 0.04);
+            for (const spread of [-0.5, 0, 0.5]) {
+              const ca = Math.atan2(fy, fx) + spread;
+              ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(kx + Math.cos(ca) * c * 0.14, ky + Math.sin(ca) * c * 0.14); ctx.stroke();
+            }
+          }
+        }
+      }
+
+      function drawHead(x, y, ang, look, time, scale) {
+        const c = view.cell;
+        const s = c * 0.5 * scale;
+        if (s < 1) return;
+        const sway = reduced() ? 0 : Math.sin(time / 240);
+        const open = G.roarUntil > time ? 1 : (G.chompUntil > time ? 0.55 : 0);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(ang);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Whiskers
+        ctx.strokeStyle = 'rgba(255,232,160,0.9)';
+        ctx.lineWidth = Math.max(1, c * 0.045);
+        for (const side of [-1, 1]) {
+          const w = sway * 0.22 * side;
+          ctx.beginPath();
+          ctx.moveTo(s * 0.95, side * s * 0.2);
+          ctx.bezierCurveTo(s * 1.4, side * s * 0.8, s * 0.2, side * s * (1.05 + w), -s * 0.75, side * s * (1.25 + w));
+          ctx.stroke();
+        }
+        // Mane
+        ctx.fillStyle = '#e8492f';
+        for (let k = -2; k <= 2; k++) {
+          const a = Math.PI + k * 0.4;
+          const L = s * (k % 2 ? 1.0 : 1.2) + sway * s * 0.06;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a - 0.35) * s * 0.5, Math.sin(a - 0.35) * s * 0.5);
+          ctx.lineTo(Math.cos(a) * L, Math.sin(a) * L);
+          ctx.lineTo(Math.cos(a + 0.35) * s * 0.5, Math.sin(a + 0.35) * s * 0.5);
+          ctx.closePath();
+          ctx.fill();
+        }
+        // Antlers
+        ctx.strokeStyle = '#f5c542';
+        for (const side of [-1, 1]) {
+          ctx.lineWidth = Math.max(1.5, c * 0.085);
+          ctx.beginPath();
+          ctx.moveTo(-s * 0.1, side * s * 0.42);
+          ctx.quadraticCurveTo(-s * 0.5, side * s * 0.98, -s * 1.08, side * s * 0.82);
+          ctx.stroke();
+          ctx.lineWidth = Math.max(1, c * 0.06);
+          ctx.beginPath();
+          ctx.moveTo(-s * 0.55, side * s * 0.84);
+          ctx.lineTo(-s * 0.72, side * s * 1.1);
+          ctx.stroke();
+        }
+        // Open mouth (roar / chomp)
+        if (open) {
+          ctx.fillStyle = '#7a1010';
+          ctx.beginPath();
+          ctx.moveTo(s * 0.35, 0);
+          ctx.lineTo(s * 1.2, -s * (0.12 + open * 0.28));
+          ctx.lineTo(s * 1.2, s * (0.12 + open * 0.28));
+          ctx.closePath();
+          ctx.fill();
+        }
+        // Skull
+        const skull = ctx.createRadialGradient(-s * 0.15, -s * 0.2, s * 0.1, 0, 0, s * 0.9);
+        skull.addColorStop(0, '#62e3b8');
+        skull.addColorStop(1, '#128063');
+        ctx.fillStyle = skull;
+        ctx.strokeStyle = '#0a3d33';
+        ctx.lineWidth = Math.max(1, c * 0.05);
+        ctx.beginPath(); ctx.ellipse(-s * 0.05, 0, s * 0.78, s * 0.66, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        // Snout (upper jaw lifts when roaring)
+        ctx.fillStyle = '#2cb88f';
+        ctx.beginPath(); ctx.ellipse(s * 0.72, -open * s * 0.1, s * 0.5, s * 0.4, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#0a3d33';
+        for (const side of [-1, 1]) {
+          ctx.beginPath(); ctx.arc(s * 1.0, side * s * 0.15 - open * s * 0.1, s * 0.06, 0, TAU); ctx.fill();
+        }
+        // Eyes & brows (pupils look toward the next character to eat)
+        const blink = !reduced() && time % 4200 < 130;
+        for (const side of [-1, 1]) {
+          const ex = s * 0.16;
+          const ey = side * s * 0.34;
+          ctx.fillStyle = '#fff8e1';
+          ctx.beginPath(); ctx.ellipse(ex, ey, s * 0.21, s * 0.18, 0, 0, TAU); ctx.fill();
+          if (blink) {
+            ctx.strokeStyle = '#0a3d33';
+            ctx.lineWidth = Math.max(1, c * 0.05);
+            ctx.beginPath(); ctx.moveTo(ex - s * 0.2, ey); ctx.lineTo(ex + s * 0.2, ey); ctx.stroke();
+          } else {
+            const px = ex + look.x * s * 0.08;
+            const py = ey + look.y * s * 0.07;
+            ctx.fillStyle = '#10151f';
+            ctx.beginPath(); ctx.arc(px, py, s * 0.11, 0, TAU); ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(px - s * 0.035, py - s * 0.04, s * 0.035, 0, TAU); ctx.fill();
+          }
+          ctx.strokeStyle = '#f5c542';
+          ctx.lineWidth = Math.max(1, c * 0.05);
+          ctx.beginPath();
+          ctx.moveTo(ex - s * 0.24, ey + side * s * 0.18);
+          ctx.quadraticCurveTo(ex, ey + side * s * 0.34, ex + s * 0.28, ey + side * s * 0.12);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        const c = view.cell;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const p of G.particles) {
+          const alpha = 1 - p.life / p.max;
+          ctx.globalAlpha = Math.max(0, alpha);
+          if (p.seg) {
+            ctx.save();
+            ctx.translate(p.x * c, p.y * c);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.char ? '#b3261e' : '#1f9e7a';
+            ctx.strokeStyle = p.char ? '#f5c542' : '#0a3d33';
+            ctx.lineWidth = Math.max(1.5, c * 0.05);
+            ctx.beginPath(); ctx.arc(0, 0, p.r * c, 0, TAU); ctx.fill(); ctx.stroke();
+            if (p.char) {
+              ctx.fillStyle = '#ffe7a3';
+              ctx.font = `700 ${Math.round(c * 0.5)}px ${CJK_FONT}`;
+              ctx.fillText(p.char, 0, c * 0.03);
+            }
+            ctx.restore();
+          } else {
+            ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x * c, p.y * c, p.r * c, 0, TAU); ctx.fill();
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawFloaters() {
+        const c = view.cell;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const f of G.floaters) {
+          ctx.globalAlpha = Math.max(0, 1 - f.life / f.max);
+          ctx.font = `800 ${Math.round(c * f.size)}px Outfit, ${CJK_FONT}`;
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = 'rgba(6,13,31,0.85)';
+          const x = clamp(f.x * c, c, view.w - c);
+          const y = clamp(f.y * c, c * 0.5, view.h - c * 0.5);
+          ctx.strokeText(f.text, x, y);
+          ctx.fillStyle = f.color;
+          ctx.fillText(f.text, x, y);
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawReadyLabel() {
+        if (G.phase !== 'ready' || !G.readyLabel) return;
+        const c = view.cell;
+        let text = G.readyLabel;
+        if (text === 'count') {
+          const rem = G.phaseUntil - G.time;
+          text = rem > 1400 ? '3' : rem > 700 ? '2' : '1';
+        }
+        const big = text.length === 1;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `800 ${Math.round(c * (big ? 2.4 : 1.1))}px Outfit, sans-serif`;
+        ctx.lineWidth = Math.max(3, c * 0.12);
+        ctx.strokeStyle = 'rgba(6,13,31,0.85)';
+        ctx.strokeText(text, view.w / 2, view.h * 0.42);
+        ctx.fillStyle = '#f5c542';
+        ctx.fillText(text, view.w / 2, view.h * 0.42);
+      }
+
+      /* ======================================================================
+         15. Main loop
+         ====================================================================== */
+      function update(dt) {
+        if (G.phase === 'paused') return;
+        G.time += dt;
+        updateEffects(dt);
+        if (G.phase === 'over') return;
+        G.stepMs = currentStepMs();
+        if (G.phase === 'play') {
+          G.acc += dt;
+          let guard = 0;
+          while (G.acc >= G.stepMs && G.phase === 'play' && guard++ < 4) {
+            G.acc -= G.stepMs;
+            step();
+          }
+          if (G.phase === 'play') updateOrb();
+        } else {
+          // Let the last move finish gliding while frozen.
+          G.acc = Math.min(G.stepMs, G.acc + dt);
+          if (G.time >= G.phaseUntil) {
+            if (G.phase === 'celebrate') startWord(false);
+            else if (G.phase === 'ready') { G.phase = 'play'; G.readyLabel = null; }
+          }
+        }
+        renderEffects();
+      }
+
+      function frame(now) {
+        const dt = Math.min(100, now - lastFrame);
+        lastFrame = now;
+        if (G) {
+          update(dt);
+          render(now);
+        }
+        rafId = requestAnimationFrame(frame);
+      }
+
+      /* ======================================================================
+         16. Input: keyboard, swipe, D-pad, pause, auto-pause
+         ====================================================================== */
+      /**
+       * Would moving the head one cell in `d` land on the neck? A safety net on
+       * top of the "no reversing G.dir" rule, which only holds while G.dir really
+       * points away from the neck (a flat respawn facing up once broke it).
+       */
+      function intoNeck(d) {
+        const [head, neck] = G.segs;
+        if (!neck) return false;
+        let x = head.x + d.x;
+        let y = head.y + d.y;
+        if (G.cfg.wrap) { x = (x + G.cols) % G.cols; y = (y + G.rows) % G.rows; }
+        return x === neck.x && y === neck.y;
+      }
+
+      function queueTurn(name) {
+        if (!G || G.phase === 'paused' || G.phase === 'over') return;
+        const d = DIRS[name];
+        const last = G.queue.length ? G.queue[G.queue.length - 1] : G.dir;
+        if (G.queue.length && d.x === -last.x && d.y === -last.y) {
+          // Changed their mind before the pending turn happened: replace it.
+          G.queue.pop();
+          queueTurn(name);
+          return;
+        }
+        if ((d.x === last.x && d.y === last.y) || (d.x === -last.x && d.y === -last.y)) return;
+        if (!G.queue.length && intoNeck(d)) return;
+        if (G.queue.length < 2) G.queue.push(d);
+      }
+
+      function togglePause(onlyPause = false) {
+        if (!G || els.game.hidden || G.phase === 'over') return;
+        if (G.phase === 'paused') {
+          if (onlyPause) return;
+          G.phase = G.resumePhase;
+          els.pauseOverlay.hidden = true;
+          els.pauseBtn.textContent = '⏸';
+          els.pauseBtn.setAttribute('aria-label', 'Pause');
+          Sfx.unlock();
+          lastFrame = performance.now();
+        } else {
+          G.resumePhase = G.phase;
+          G.phase = 'paused';
+          els.pauseOverlay.hidden = false;
+          els.pauseBtn.textContent = '▶';
+          els.pauseBtn.setAttribute('aria-label', 'Resume');
+          if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+        }
+      }
+
+      document.addEventListener('keydown', e => {
+        if (!G || els.game.hidden || G.phase === 'over') return;
+        const dir = KEY_DIRS[e.code] || KEY_DIRS[e.key];
+        if (dir) {
+          e.preventDefault();
+          queueTurn(dir);
+          return;
+        }
+        if (e.repeat) return;
+        const onControl = e.target instanceof Element && e.target.closest('button, a, input, select');
+        if ((e.code === 'Space' && !onControl) || e.code === 'KeyP' || e.code === 'Escape') {
+          e.preventDefault();
+          togglePause();
+        }
+      });
+
+      let swipe = null;
+      els.canvas.addEventListener('pointerdown', e => {
+        if (!G) return;
+        e.preventDefault();
+        swipe = { id: e.pointerId, x: e.clientX, y: e.clientY };
+        try { els.canvas.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+      });
+      els.canvas.addEventListener('pointermove', e => {
+        if (!swipe || e.pointerId !== swipe.id) return;
+        const dx = e.clientX - swipe.x;
+        const dy = e.clientY - swipe.y;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < Math.max(18, view.cell * 0.6)) return;
+        queueTurn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+        swipe.x = e.clientX;
+        swipe.y = e.clientY;
+      });
+      const endSwipe = e => { if (swipe && e.pointerId === swipe.id) swipe = null; };
+      els.canvas.addEventListener('pointerup', endSwipe);
+      els.canvas.addEventListener('pointercancel', endSwipe);
+
+      els.dpad.addEventListener('pointerdown', e => {
+        const b = e.target.closest('[data-dir]');
+        if (!b) return;
+        e.preventDefault();
+        queueTurn(b.dataset.dir);
+        b.classList.add('is-pressed');
+        setTimeout(() => b.classList.remove('is-pressed'), 130);
+      });
+      els.dpad.addEventListener('click', e => {
+        const b = e.target.closest('[data-dir]');
+        if (b && e.detail === 0) queueTurn(b.dataset.dir); // keyboard activation only
+      });
+
+      els.pauseBtn.addEventListener('click', e => { e.currentTarget.blur(); togglePause(); });
+      els.resumeBtn.addEventListener('click', () => togglePause());
+      els.endBtn.addEventListener('click', () => { if (G) gameOver(); });
+      els.muteBtn.addEventListener('click', e => {
+        Sfx.setMuted(!Sfx.muted);
+        renderMute();
+        e.currentTarget.blur();
+      });
+      els.promptMain.addEventListener('click', e => {
+        const b = e.target.closest('.wd-listen');
+        if (!b || !G) return;
+        speakChinese(G.word.w.vocab);
+        b.blur();
+      });
+
+      document.addEventListener('visibilitychange', () => { if (document.hidden) togglePause(true); });
+      window.addEventListener('blur', () => togglePause(true));
+
+      let resizeRaf = 0;
+      window.addEventListener('resize', () => {
+        cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(() => { if (G && !els.game.hidden) layout(); });
+      });
+
+      /* ======================================================================
+         17. DOM rendering: HUD, prompt, progress, banners
+         ====================================================================== */
+      function renderHud() {
+        els.score.textContent = G.score;
+        const slots = Math.max(START_HEARTS, G.hearts);
+        els.hearts.innerHTML = Array.from({ length: slots }, (_, i) =>
+          `<span class="${i < G.hearts ? '' : 'wd-heart--empty'}">♥</span>`).join('');
+        els.hearts.setAttribute('aria-label', `${G.hearts} hearts`);
+        els.words.textContent = G.spelled;
+        const mult = streakMult(G.streak);
+        els.streak.textContent = mult > 1 ? `${G.streak} ×${mult}` : String(G.streak);
+      }
+
+      function renderMute() {
+        els.muteBtn.textContent = Sfx.muted ? '🔇' : '🔊';
+        els.muteBtn.setAttribute('aria-pressed', String(Sfx.muted));
+        els.muteBtn.setAttribute('aria-label', Sfx.muted ? 'Unmute sound effects' : 'Mute sound effects');
+      }
+
+      /** Which prompt a word actually gets (falls back when a sheet cell is empty). */
+      function effectiveMode(w) {
+        if (G.mode === 'meaning' && !w.meaning) return 'pinyin';
+        if (G.mode === 'pinyin' && !w.pinyin) return 'meaning';
+        return G.mode;
+      }
+
+      function promptText(w) {
+        return effectiveMode(w) === 'pinyin' ? w.pinyin : w.meaning;
+      }
+
+      function renderPrompt() {
+        const w = G.word.w;
+        const mode = effectiveMode(w);
+        const count = `${w.chars.length} character${w.chars.length > 1 ? 's' : ''}`;
+        if (mode === 'listen') {
+          els.promptLabel.textContent = `Listen & spell · ${count}`;
+          els.promptMain.innerHTML = '<button class="wd-listen" type="button">🔊 Hear it again</button>';
+        } else if (mode === 'pinyin') {
+          els.promptLabel.textContent = `Spell the pinyin · ${count}`;
+          els.promptMain.innerHTML = `<span class="wd-prompt__py">${pinyinHtml(w.pinyin)}</span>`;
+        } else {
+          els.promptLabel.textContent = `Spell the word for · ${count}`;
+          els.promptMain.innerHTML = `<span class="wd-prompt__en" title="${escapeHtml(w.meaning)}">${escapeHtml(w.meaning)}</span>`;
+        }
+        els.prompt.classList.remove('is-new');
+        void els.prompt.offsetWidth; // restart the entrance animation
+        els.prompt.classList.add('is-new');
+      }
+
+      function renderProgress() {
+        const { w, progress } = G.word;
+        els.progress.classList.remove('is-complete');
+        els.progress.innerHTML = w.chars.map((ch, i) => {
+          const cls = i < progress ? 'is-done' : i === progress ? 'is-next' : '';
+          return `<span class="wd-progress__box ${cls}" lang="zh">${i < progress ? escapeHtml(ch) : ''}</span>`;
+        }).join('');
+      }
+
+      function renderEffects() {
+        const parts = [];
+        if (G.slowUntil > G.time) parts.push(`🐢 ${Math.ceil((G.slowUntil - G.time) / 1000)}s`);
+        if (G.word && G.word.reveal) parts.push('👁 Reveal');
+        if (G.word && G.word.magnet) parts.push('🧲 Magnet');
+        const html = parts.map(p => `<span class="wd-effect">${p}</span>`).join('');
+        if (html !== G.effectsHtml) {
+          els.effects.innerHTML = html;
+          G.effectsHtml = html;
+        }
+      }
+
+      function showBanner(w, points, mult) {
+        els.banner.innerHTML =
+          `<div class="wd-banner__zh" lang="zh">${escapeHtml(w.vocab)}</div>` +
+          (w.pinyin ? `<div class="wd-banner__py">${pinyinHtml(w.pinyin)}</div>` : '') +
+          (w.meaning ? `<div class="wd-banner__en">${escapeHtml(w.meaning)}</div>` : '') +
+          `<div class="wd-banner__pts">+${points}${mult > 1 ? `<span>×${mult} streak</span>` : ''}</div>`;
+        els.banner.classList.toggle('is-low', G.segs[0].y < G.rows / 2);
+        els.banner.hidden = false;
+      }
+
+      function showPowerToast(power) {
+        els.powerToast.textContent = `${power.icon} ${power.label}`;
+        els.powerToast.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { els.powerToast.hidden = true; }, 1500);
+      }
+
+      /* ======================================================================
+         18. Screens: setup ↔ game ↔ game over
+         ====================================================================== */
+      function showScreen(name) {
+        els.setup.hidden = name !== 'setup';
+        els.game.hidden = name !== 'game';
+        els.over.hidden = name !== 'over';
+        els.header.hidden = name === 'game';
+        document.body.classList.toggle('wd-playing', name === 'game');
+      }
+
+      function showGameOver() {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+        const run = G;
+        G = null;
+        const prevBest = getBest(run.levelKey, run.diff);
+        const isNew = run.score > prevBest;
+        if (isNew) saveJson(bestKey(run.levelKey, run.diff), run.score);
+        els.overSub.textContent = `${getLevelLabel(run.levelKey)} · ${run.cfg.label}`;
+        els.newBest.hidden = !isNew || run.score === 0;
+        els.overScore.textContent = run.score;
+        els.overBest.textContent = Math.max(prevBest, run.score);
+        els.overWords.textContent = run.spelled;
+        els.overStreak.textContent = run.bestStreak;
+        els.scrollList.innerHTML = run.seen.length ? run.seen.map((e, i) => {
+          const perfect = e.status === 'perfect';
+          const note = e.status === 'slip' ? 'spelled after a slip' : e.status === 'missed' ? 'not finished' : '';
+          return `<li class="wd-scroll__item${perfect ? ' is-perfect' : ''}">
+            <span class="wd-scroll__mark" aria-label="${perfect ? 'Correct' : 'Missed'}">${perfect ? '✓' : '✗'}</span>
+            <span class="wd-scroll__zh" lang="zh">${escapeHtml(e.w.vocab)}</span>
+            <span class="wd-scroll__py">${pinyinHtml(e.w.pinyin)}${note ? `<span class="wd-scroll__note">${note}</span>` : ''}</span>
+            <span class="wd-scroll__en">${escapeHtml(e.w.meaning)}</span>
+            ${voiceAvailable ? `<button class="btn btn--ghost btn--sm wd-say" type="button" data-i="${i}" aria-label="Hear ${escapeHtml(e.w.vocab)}">🔊</button>` : ''}
+          </li>`;
+        }).join('') : '<li class="wd-empty">No words this time.</li>';
+        showScreen('over');
+        window.scrollTo(0, 0);
+        els.againBtn.focus({ preventScroll: true });
+        updateBestNote();
+      }
+
+      els.scrollList.addEventListener('click', e => {
+        const b = e.target.closest('.wd-say');
+        if (b && lastRun) speakChinese(lastRun.seen[Number(b.dataset.i)].w.vocab);
+      });
+      els.againBtn.addEventListener('click', startGame);
+      els.settingsBtn.addEventListener('click', () => {
+        showScreen('setup');
+        window.scrollTo(0, 0);
+        els.startBtn.focus({ preventScroll: true });
+      });
+      els.startBtn.addEventListener('click', startGame);
+
+      /* ======================================================================
+         19. Setup wiring & boot
+         ====================================================================== */
+      populateLevelSelect(els.levelSelect);
+      els.levelSelect.addEventListener('change', () => prepareVocab(els.levelSelect.value));
+      document.querySelectorAll('input[name="mode"], input[name="diff"]').forEach(r =>
+        r.addEventListener('change', () => { readSettingsFromForm(); updateBestNote(); }));
+      els.voiceToggle.addEventListener('change', readSettingsFromForm);
+
+      applySettingsToForm();
+      renderMute();
+      prepareVocab(getActiveLevel());
+      hasChineseVoice(2500).then(ok => {
+        voiceAvailable = ok;
+        els.listenOpt.hidden = !ok;
+        els.voiceRow.hidden = !ok;
+        els.voiceNote.hidden = ok;
+        applySettingsToForm();
+      });
+    });
+  </script>
+</body>
+
+</html>

@@ -183,6 +183,9 @@
     </div>
 
     <script>
+        // shared.js is deferred — swap the static options for the shared curriculum list once it loads.
+        document.addEventListener('DOMContentLoaded', () => populateLevelSelect(document.getElementById('level-select')));
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 

@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hanzidle — Daily Vocabulary Deduction</title>
+  <link rel="stylesheet" href="projects.css" />
+  <link rel="stylesheet" href="games.css" />
+  <script src="shared.js" defer></script>
+  <script src="daily.js" defer></script>
+  <script type="module" src="firebase-client.js"></script>
+  <style>
+    /* ---------- Hanzidle-specific styles (builds on games.css tokens) ---------- */
+
+    .game-header__row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .clue-legend {
+      text-align: center;
+      color: var(--clr-text-muted);
+      font-size: 0.8rem;
+      margin: 0 0 16px;
+      line-height: 1.6;
+    }
+
+    .guesses-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .guess-row {
+      background: var(--clr-surface);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      animation: floatIn 0.3s ease;
+    }
+
+    .guess-row--empty {
+      opacity: 0.4;
+      border-style: dashed;
+    }
+
+    .guess-row--win {
+      border-color: var(--clr-success);
+      box-shadow: 0 0 0 1px var(--clr-success-glow);
+    }
+
+    .guess-row__header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .guess-row__vocab {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .guess-row__meta {
+      color: var(--clr-text-muted);
+      font-size: 0.82rem;
+      text-align: right;
+    }
+
+    .clue-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .clue-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-height: 52px;
+      padding: 6px 2px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--clr-border);
+      background: rgba(255 255 255 / 0.04);
+      text-align: center;
+    }
+
+    .clue-cell.is-match {
+      border-color: var(--clr-success);
+      background: rgba(34 197 94 / 0.16);
+    }
+
+    .clue-cell__emoji {
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+
+    .clue-cell__label {
+      font-size: 0.6rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--clr-text-muted);
+    }
+
+    .guess-input-wrap {
+      position: relative;
+      margin-bottom: 10px;
+    }
+
+    .suggestions {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      z-index: 20;
+      max-height: 260px;
+      overflow-y: auto;
+      background: var(--clr-bg-3);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card);
+    }
+
+    .suggestion-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 44px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 0.92rem;
+    }
+
+    .suggestion-item:hover,
+    .suggestion-item.is-active {
+      background: var(--clr-surface-hover);
+    }
+
+    .suggestion-item__vocab {
+      font-weight: 700;
+      flex: 0 0 auto;
+    }
+
+    .suggestion-item__meta {
+      color: var(--clr-text-muted);
+      font-size: 0.8rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .shake-anim { animation: shake 0.35s ease; }
+
+    .result-banner {
+      text-align: center;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 0 0 4px;
+    }
+
+    .result-banner--win { color: var(--clr-success); }
+    .result-banner--lose { color: var(--clr-danger); }
+
+    .result-badge-row {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .result-target {
+      text-align: center;
+      margin: 10px 0 16px;
+      animation: pop 0.4s ease;
+    }
+
+    .result-target__vocab {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(2.2rem, 10vw, 3.2rem);
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--clr-accent-light), var(--clr-gold));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1.1;
+    }
+
+    .result-target__pinyin {
+      font-size: 1.15rem;
+      color: var(--clr-text-muted);
+      margin-top: 2px;
+    }
+
+    .result-target__meaning {
+      font-size: 1.05rem;
+      margin-top: 2px;
+    }
+
+    .share-pre {
+      background: rgba(0 0 0 / 0.25);
+      border: 1px solid var(--clr-border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      margin: 0 0 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      text-align: center;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .leaderboard-heading {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      margin: 0 0 12px;
+      text-align: center;
+    }
+
+    .leaderboard-note {
+      text-align: center;
+      color: var(--clr-text-muted);
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
+    .change-level-row {
+      margin-top: 14px;
+    }
+
+    .rules-list {
+      margin: 0 0 16px;
+      padding-left: 20px;
+      color: var(--clr-text-muted);
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+
+    .rules-list strong { color: var(--clr-text); }
+
+    .modal p { color: var(--clr-text-muted); font-size: 0.92rem; line-height: 1.6; }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .guess-row, .shake-anim, .result-target, .suggestion-item {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="game-shell">
+  <nav class="back-nav"><a href="index.html" class="back-nav__link"><svg viewBox="0 0 24 24">
+        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+      </svg> Home</a></nav>
+
+  <div class="toast-container" id="toast-container"></div>
+  <div id="sr-announcer" class="visually-hidden" aria-live="polite"></div>
+
+  <div class="game-wrap">
+    <header class="game-header">
+      <div class="game-header__row">
+        <h1 class="game-header__title">Hanzidle</h1>
+        <button type="button" class="btn btn--ghost btn--sm" id="info-btn" aria-haspopup="dialog" aria-controls="rules-overlay">Rules</button>
+      </div>
+      <p class="game-header__subtitle">Guess today's secret word in 6 tries. Same puzzle for everyone, every day, per level.</p>
+    </header>
+
+    <!-- ---------- Setup screen ---------- -->
+    <section class="panel" id="setup-panel">
+      <div class="field-row">
+        <label for="level-select">Level</label>
+        <select id="level-select" class="select"></select>
+      </div>
+      <button type="button" class="btn btn--primary btn--block" id="play-btn">Play Today's Puzzle</button>
+    </section>
+
+    <!-- ---------- Game screen ---------- -->
+    <section id="game-panel" hidden>
+      <div class="hud">
+        <div class="hud__stat">
+          <span class="hud__stat-value" id="hud-level">—</span>
+          <span class="hud__stat-label">Level</span>
+        </div>
+        <div class="hud__stat" id="hud-guesses-wrap">
+          <span class="hud__stat-value" id="hud-guesses">6</span>
+          <span class="hud__stat-label">Guesses Left</span>
+        </div>
+        <div class="hud__stat">
+          <span class="hud__stat-value" id="hud-date">—</span>
+          <span class="hud__stat-label">Today (UTC)</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <p class="clue-legend">🟩 match &nbsp;·&nbsp; ⬆️ secret word is "more" &nbsp;·&nbsp; ⬇️ secret word is "less" &nbsp;·&nbsp; ⬛ no match</p>
+
+        <div class="guesses-container" id="guesses-container"></div>
+
+        <div id="guess-form-wrap">
+          <div class="guess-input-wrap">
+            <input type="text" id="guess-input" class="input" placeholder="Type pinyin, meaning, or hanzi…" autocomplete="off" autocapitalize="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="suggestions" aria-autocomplete="list" />
+            <div class="suggestions" id="suggestions" role="listbox" hidden></div>
+          </div>
+          <button type="button" class="btn btn--primary btn--block" id="submit-guess-btn">Guess</button>
+        </div>
+      </div>
+
+      <div class="panel" id="result-panel" hidden>
+        <p class="result-banner" id="result-banner"></p>
+        <div class="result-badge-row">
+          <span class="badge" id="result-badge"></span>
+        </div>
+        <div class="result-target">
+          <div class="result-target__vocab" id="result-vocab"></div>
+          <div class="result-target__pinyin" id="result-pinyin"></div>
+          <div class="result-target__meaning" id="result-meaning"></div>
+        </div>
+        <pre class="share-pre" id="share-preview"></pre>
+        <div class="result-actions">
+          <button type="button" class="btn btn--primary" id="copy-result-btn">Copy Result</button>
+        </div>
+      </div>
+
+      <div class="panel" id="leaderboard-panel" hidden>
+        <h2 class="leaderboard-heading">Today's Leaderboard — <span id="lb-level-label"></span></h2>
+        <ol class="leaderboard-list" id="leaderboard-list"></ol>
+        <p class="leaderboard-note" id="leaderboard-note" hidden>Leaderboard needs Firebase configuration.</p>
+      </div>
+
+      <div class="change-level-row">
+        <button type="button" class="btn btn--ghost btn--block" id="change-level-btn">Change Level</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ---------- Rules modal ---------- -->
+  <div class="modal-overlay" id="rules-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+      <h2 class="modal__title" id="rules-title">How to Play Hanzidle</h2>
+      <p>Guess today's secret vocabulary word within 6 tries. Type pinyin, meaning, or hanzi into the box and pick a suggestion (or press Enter when there's exactly one match).</p>
+      <p>Every guess compares against the secret word with 4 clues:</p>
+      <ul class="rules-list">
+        <li><strong>Length</strong> — 🟩 same number of characters, ⬆️ the secret word is longer, ⬇️ the secret word is shorter.</li>
+        <li><strong>Initial</strong> — 🟩 same pinyin initial sound, ⬛ different initial.</li>
+        <li><strong>A–Z Order</strong> — 🟩 you found the exact word, ⬆️ the secret word's pinyin sorts later alphabetically, ⬇️ it sorts earlier.</li>
+        <li><strong>Meaning</strong> — 🟩 the English meaning has the same word count, ⬆️ the secret meaning has more words, ⬇️ fewer words.</li>
+      </ul>
+      <p>A new puzzle unlocks every day (UTC) for each level, and everyone gets the same word.</p>
+      <button type="button" class="btn btn--primary btn--block" id="rules-close-btn">Got it</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const MAX_GUESSES = 6;
+
+      /* ---------- Element refs ---------- */
+      const setupPanel = document.getElementById('setup-panel');
+      const gamePanel = document.getElementById('game-panel');
+      const levelSelect = document.getElementById('level-select');
+      const playBtn = document.getElementById('play-btn');
+      const changeLevelBtn = document.getElementById('change-level-btn');
+
+      const hudLevel = document.getElementById('hud-level');
+      const hudDate = document.getElementById('hud-date');
+      const hudGuesses = document.getElementById('hud-guesses');
+      const hudGuessesWrap = document.getElementById('hud-guesses-wrap');
+
+      const guessesContainer = document.getElementById('guesses-container');
+      const guessFormWrap = document.getElementById('guess-form-wrap');
+      const guessInput = document.getElementById('guess-input');
+      const suggestionsEl = document.getElementById('suggestions');
+      const submitGuessBtn = document.getElementById('submit-guess-btn');
+
+      const resultPanel = document.getElementById('result-panel');
+      const resultBanner = document.getElementById('result-banner');
+      const resultBadge = document.getElementById('result-badge');
+      const resultVocab = document.getElementById('result-vocab');
+      const resultPinyin = document.getElementById('result-pinyin');
+      const resultMeaning = document.getElementById('result-meaning');
+      const sharePreview = document.getElementById('share-preview');
+      const copyResultBtn = document.getElementById('copy-result-btn');
+
+      const leaderboardPanel = document.getElementById('leaderboard-panel');
+      const leaderboardList = document.getElementById('leaderboard-list');
+      const leaderboardNote = document.getElementById('leaderboard-note');
+      const lbLevelLabel = document.getElementById('lb-level-label');
+
+      const infoBtn = document.getElementById('info-btn');
+      const rulesOverlay = document.getElementById('rules-overlay');
+      const rulesCloseBtn = document.getElementById('rules-close-btn');
+
+      const toastContainer = document.getElementById('toast-container');
+      const announcer = document.getElementById('sr-announcer');
+
+      /* ---------- Game state ---------- */
+      let vocabList = [];
+      let target = null;
+      let currentLevelId = null;
+      let currentLevelLabel = '';
+      let state = { guesses: [], finished: false, won: false, submitted: false };
+
+      let currentSuggestions = [];
+      let activeSuggestionIndex = -1;
+
+      /* ---------- Small helpers ---------- */
+      function showToast(msg, type = 'success') {
+        const el = document.createElement('div');
+        el.className = `toast toast--${type}`;
+        el.textContent = msg;
+        toastContainer.appendChild(el);
+        setTimeout(() => el.remove(), 2500);
+      }
+
+      function announce(msg) {
+        announcer.textContent = '';
+        requestAnimationFrame(() => { announcer.textContent = msg; });
+      }
+
+      function storageKey(sheetId) {
+        return `hanzidle:${sheetId}:${todayKey()}`;
+      }
+
+      function saveState() {
+        try { localStorage.setItem(storageKey(currentLevelId), JSON.stringify(state)); } catch { /* storage unavailable */ }
+      }
+
+      function loadState(sheetId) {
+        let loaded = null;
+        try {
+          const raw = localStorage.getItem(storageKey(sheetId));
+          if (raw) loaded = JSON.parse(raw);
+        } catch { /* corrupt/blocked storage — start fresh */ }
+        if (loaded && Array.isArray(loaded.guesses)) {
+          state = {
+            guesses: loaded.guesses,
+            finished: !!loaded.finished,
+            won: !!loaded.won,
+            submitted: !!loaded.submitted,
+          };
+        } else {
+          state = { guesses: [], finished: false, won: false, submitted: false };
+        }
+      }
+
+      /* ---------- Pinyin helpers ---------- */
+      function stripDiacritics(str) {
+        return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      }
+
+      function pinyinInitial(pinyin) {
+        const cleaned = stripDiacritics(pinyin).toLowerCase().trim();
+        const firstSyllable = cleaned.split(/\s+/)[0] || '';
+        const m = firstSyllable.match(/^[^aeiou]+/);
+        let initial = m ? m[0] : '';
+        if (initial.length > 2) initial = initial.slice(0, 2);
+        return initial;
+      }
+
+      /* ---------- Feedback computation ---------- */
+      function computeFeedback(guess, targetWord) {
+        const win = guess.vocab === targetWord.vocab;
+
+        const gLen = [...guess.vocab].length;
+        const tLen = [...targetWord.vocab].length;
+        let lengthEmoji, lengthMatch;
+        if (gLen === tLen) { lengthEmoji = '🟩'; lengthMatch = true; }
+        else if (tLen > gLen) { lengthEmoji = '⬆️'; lengthMatch = false; }
+        else { lengthEmoji = '⬇️'; lengthMatch = false; }
+
+        const gInit = pinyinInitial(guess.pinyin);
+        const tInit = pinyinInitial(targetWord.pinyin);
+        const initMatch = gInit === tInit;
+        const initEmoji = initMatch ? '🟩' : '⬛';
+
+        let orderEmoji, orderMatch;
+        if (win) {
+          orderEmoji = '🟩';
+          orderMatch = true;
+        } else {
+          const cmp = String(guess.pinyin || '').localeCompare(String(targetWord.pinyin || ''));
+          if (cmp === 0) {
+            orderEmoji = targetWord.vocab > guess.vocab ? '⬆️' : '⬇️';
+          } else {
+            orderEmoji = cmp < 0 ? '⬆️' : '⬇️';
+          }
+          orderMatch = false;
+        }
+
+        const gWords = String(guess.meaning || '').trim().split(/\s+/).filter(Boolean).length;
+        const tWords = String(targetWord.meaning || '').trim().split(/\s+/).filter(Boolean).length;
+        let meaningEmoji, meaningMatch;
+        if (gWords === tWords) { meaningEmoji = '🟩'; meaningMatch = true; }
+        else if (tWords > gWords) { meaningEmoji = '⬆️'; meaningMatch = false; }
+        else { meaningEmoji = '⬇️'; meaningMatch = false; }
+
+        return {
+          win,
+          cells: [
+            { emoji: lengthEmoji, label: 'Length', match: lengthMatch },
+            { emoji: initEmoji, label: 'Initial', match: initMatch },
+            { emoji: orderEmoji, label: 'A–Z Order', match: orderMatch },
+            { emoji: meaningEmoji, label: 'Meaning', match: meaningMatch },
+          ],
+        };
+      }
+
+      /* ---------- Rendering: guesses grid ---------- */
+      function buildGuessRow(guess, cells, win) {
+        const row = document.createElement('div');
+        row.className = 'guess-row' + (win ? ' guess-row--win' : '');
+        row.innerHTML = `
+          <div class="guess-row__header">
+            <span class="guess-row__vocab">${escapeHtml(guess.vocab)}</span>
+            <span class="guess-row__meta">${escapeHtml(guess.pinyin)} · ${escapeHtml(guess.meaning)}</span>
+          </div>
+          <div class="clue-grid">
+            ${cells.map(c => `
+              <div class="clue-cell${c.match ? ' is-match' : ''}">
+                <span class="clue-cell__emoji" aria-hidden="true">${c.emoji}</span>
+                <span class="clue-cell__label">${c.label}</span>
+              </div>`).join('')}
+          </div>`;
+        return row;
+      }
+
+      function buildEmptyRow(n) {
+        const row = document.createElement('div');
+        row.className = 'guess-row guess-row--empty';
+        row.innerHTML = `
+          <div class="guess-row__header">
+            <span class="guess-row__vocab">Guess ${n}</span>
+          </div>
+          <div class="clue-grid">
+            ${['Length', 'Initial', 'A–Z Order', 'Meaning'].map(l => `
+              <div class="clue-cell">
+                <span class="clue-cell__emoji" aria-hidden="true">·</span>
+                <span class="clue-cell__label">${l}</span>
+              </div>`).join('')}
+          </div>`;
+        return row;
+      }
+
+      function renderGuesses() {
+        guessesContainer.innerHTML = '';
+        state.guesses.forEach((g) => {
+          const fb = computeFeedback(g, target);
+          guessesContainer.appendChild(buildGuessRow(g, fb.cells, fb.win));
+        });
+        for (let i = state.guesses.length + 1; i <= MAX_GUESSES; i++) {
+          guessesContainer.appendChild(buildEmptyRow(i));
+        }
+      }
+
+      function updateGuessesHud() {
+        const remaining = state.finished ? 0 : MAX_GUESSES - state.guesses.length;
+        hudGuesses.textContent = String(remaining);
+        hudGuessesWrap.classList.toggle('hud__stat--danger', !state.finished && remaining <= 2);
+        hudGuessesWrap.classList.toggle('hud__stat--success', state.finished && state.won);
+      }
+
+      /* ---------- Suggestions ---------- */
+      function hideSuggestions() {
+        suggestionsEl.hidden = true;
+        suggestionsEl.innerHTML = '';
+        currentSuggestions = [];
+        activeSuggestionIndex = -1;
+        guessInput.setAttribute('aria-expanded', 'false');
+      }
+
+      function renderSuggestions() {
+        if (!currentSuggestions.length) {
+          suggestionsEl.hidden = true;
+          suggestionsEl.innerHTML = '';
+          guessInput.setAttribute('aria-expanded', 'false');
+          return;
+        }
+        suggestionsEl.hidden = false;
+        guessInput.setAttribute('aria-expanded', 'true');
+        suggestionsEl.innerHTML = currentSuggestions.map((v, i) => `
+          <div class="suggestion-item${i === activeSuggestionIndex ? ' is-active' : ''}" role="option" data-index="${i}" id="suggestion-${i}" aria-selected="${i === activeSuggestionIndex}">
+            <span class="suggestion-item__vocab">${escapeHtml(v.vocab)}</span>
+            <span class="suggestion-item__meta">${escapeHtml(v.pinyin)} · ${escapeHtml(v.meaning)}</span>
+          </div>`).join('');
+      }
+
+      function updateSuggestions(rawQuery) {
+        const q = rawQuery.trim().toLowerCase();
+        activeSuggestionIndex = -1;
+        if (!q) {
+          currentSuggestions = [];
+          renderSuggestions();
+          return;
+        }
+        currentSuggestions = vocabList.filter(v =>
+          v.vocab.toLowerCase().includes(q) ||
+          v.pinyin.toLowerCase().includes(q) ||
+          v.meaning.toLowerCase().includes(q)
+        ).slice(0, 8);
+        renderSuggestions();
+      }
+
+      function moveActive(delta) {
+        if (!currentSuggestions.length) return;
+        activeSuggestionIndex = (activeSuggestionIndex + delta + currentSuggestions.length) % currentSuggestions.length;
+        renderSuggestions();
+      }
+
+      function resolveGuessSelection() {
+        const val = guessInput.value.trim();
+        if (!val) return null;
+        if (activeSuggestionIndex >= 0 && currentSuggestions[activeSuggestionIndex]) {
+          return currentSuggestions[activeSuggestionIndex];
+        }
+        if (currentSuggestions.length === 1) return currentSuggestions[0];
+        const lowerVal = val.toLowerCase();
+        const exact = vocabList.filter(v =>
+          v.vocab === val ||
+          v.pinyin.toLowerCase() === lowerVal ||
+          v.meaning.toLowerCase() === lowerVal
+        );
+        return exact.length === 1 ? exact[0] : null;
+      }
+
+      /* ---------- Guess submission ---------- */
+      function submitPicked(picked) {
+        if (state.finished || !picked) return;
+        if (state.guesses.some(g => g.vocab === picked.vocab)) {
+          showToast('Already guessed that one.', 'danger');
+          return;
+        }
+        const fb = computeFeedback(picked, target);
+        state.guesses.push({ vocab: picked.vocab, pinyin: picked.pinyin, meaning: picked.meaning });
+        if (fb.win) {
+          state.finished = true;
+          state.won = true;
+        } else if (state.guesses.length >= MAX_GUESSES) {
+          state.finished = true;
+          state.won = false;
+        }
+        saveState();
+
+        guessInput.value = '';
+        hideSuggestions();
+        renderGuesses();
+        updateGuessesHud();
+        announce(`Guess ${state.guesses.length}, ${picked.vocab}: ` +
+          fb.cells.map(c => `${c.label} ${c.match ? 'match' : 'no match'}`).join(', '));
+
+        if (state.finished) {
+          recordAnswer(currentLevelId, target.vocab, state.won);
+          showResult();
+          finishGame();
+        } else {
+          guessInput.focus();
+        }
+      }
+
+      function handleSubmit() {
+        if (state.finished) return;
+        const picked = resolveGuessSelection();
+        if (!picked) {
+          showToast('No unique match — keep typing or pick a suggestion.', 'danger');
+          guessInput.classList.add('shake-anim');
+          setTimeout(() => guessInput.classList.remove('shake-anim'), 400);
+          return;
+        }
+        submitPicked(picked);
+      }
+
+      /* ---------- Share text ---------- */
+      function buildShareText() {
+        const header = `Hanzidle — ${currentLevelLabel} — ${todayKey()} — ${state.won ? state.guesses.length + '/6' : 'X/6'}`;
+        const grid = state.guesses.map(g => computeFeedback(g, target).cells.map(c => c.emoji).join('')).join('\n');
+        return `${header}\n${grid}`;
+      }
+
+      /* ---------- Result / leaderboard ---------- */
+      function showResult() {
+        guessFormWrap.hidden = true;
+        resultPanel.hidden = false;
+        resultBanner.textContent = state.won ? "You got it! 🎉" : 'Out of guesses';
+        resultBanner.className = 'result-banner ' + (state.won ? 'result-banner--win' : 'result-banner--lose');
+        resultBadge.textContent = state.won ? `Solved in ${state.guesses.length}/6` : `Failed — 6/6`;
+        resultVocab.textContent = target.vocab;
+        resultPinyin.textContent = target.pinyin;
+        resultMeaning.textContent = target.meaning;
+        sharePreview.textContent = buildShareText();
+        lbLevelLabel.textContent = currentLevelLabel;
+      }
+
+      function renderLeaderboard(rows, myUid) {
+        leaderboardList.innerHTML = '';
+        if (!rows.length) {
+          leaderboardList.innerHTML = '<li class="leaderboard-row"><span class="leaderboard-row__name">No scores yet today — be the first!</span></li>';
+          return;
+        }
+        rows.forEach((row, i) => {
+          const li = document.createElement('li');
+          li.className = 'leaderboard-row' + (myUid && row.uid === myUid ? ' leaderboard-row--me' : '');
+          li.innerHTML = `
+            <span class="leaderboard-row__rank">${i + 1}</span>
+            <span class="leaderboard-row__name">${escapeHtml(row.name || 'Anonymous')}</span>
+            <span class="leaderboard-row__score">${Number(row.score) || 0}</span>`;
+          leaderboardList.appendChild(li);
+        });
+      }
+
+      function waitForFirebaseClient() {
+        return new Promise((resolve) => {
+          if (window.FirebaseClient) { resolve(window.FirebaseClient); return; }
+          window.addEventListener('firebase-client-ready', () => resolve(window.FirebaseClient), { once: true });
+          setTimeout(() => resolve(window.FirebaseClient || null), 5000);
+        });
+      }
+
+      function ensureDisplayName() {
+        if (!window.FirebaseClient) return;
+        let name = window.FirebaseClient.getDisplayName();
+        if (!name) {
+          name = (prompt("Pick a nickname for the leaderboard (max 20 chars):", '') || '').trim().slice(0, 20);
+          if (name) window.FirebaseClient.setDisplayName(name);
+        }
+      }
+
+      async function finishGame() {
+        const fb = window.FirebaseClient || await waitForFirebaseClient();
+        if (!fb || !fb.isConfigured) {
+          leaderboardPanel.hidden = false;
+          leaderboardList.innerHTML = '';
+          leaderboardNote.hidden = false;
+          return;
+        }
+
+        leaderboardPanel.hidden = false;
+        leaderboardNote.hidden = true;
+        ensureDisplayName();
+
+        if (!state.submitted) {
+          const score = state.won ? (7 - state.guesses.length) * 100 : 0;
+          try {
+            const res = await fb.submitScore('hanzidle', {
+              score,
+              meta: { guesses: state.guesses.length, level: currentLevelId, won: state.won },
+              period: todayKey(),
+            });
+            if (res && res.ok) {
+              state.submitted = true;
+              saveState();
+            }
+          } catch (err) {
+            console.error('[hanzidle] submitScore failed:', err);
+          }
+        }
+
+        try {
+          const rows = await fb.getLeaderboard('hanzidle', { period: todayKey(), top: 10 });
+          const myUid = await fb.currentUid();
+          renderLeaderboard(rows, myUid);
+        } catch (err) {
+          console.error('[hanzidle] getLeaderboard failed:', err);
+        }
+      }
+
+      /* ---------- Level flow ---------- */
+      async function startLevel(sheetId) {
+        currentLevelId = sheetId;
+        currentLevelLabel = levelSelect.options[levelSelect.selectedIndex]
+          ? levelSelect.options[levelSelect.selectedIndex].text
+          : 'Level';
+
+        playBtn.disabled = true;
+        const originalLabel = playBtn.textContent;
+        playBtn.textContent = 'Loading…';
+
+        try {
+          vocabList = await fetchVocabularyFromSheet(sheetId);
+          target = dailyPick(vocabList, sheetId, new Date());
+          loadState(sheetId);
+
+          setupPanel.hidden = true;
+          gamePanel.hidden = false;
+
+          hudLevel.textContent = currentLevelLabel;
+          hudDate.textContent = todayKey();
+          updateGuessesHud();
+          renderGuesses();
+
+          if (state.finished) {
+            showResult();
+            finishGame();
+          } else {
+            resultPanel.hidden = true;
+            leaderboardPanel.hidden = true;
+            guessFormWrap.hidden = false;
+            guessInput.value = '';
+            hideSuggestions();
+            guessInput.focus();
+          }
+
+          try { localStorage.setItem('hanzidle:lastLevel', sheetId); } catch { /* ignore */ }
+        } catch (err) {
+          console.error('[hanzidle] failed to start level:', err);
+          showToast('Could not load vocabulary — please try again.', 'danger');
+        } finally {
+          playBtn.disabled = false;
+          playBtn.textContent = originalLabel;
+        }
+      }
+
+      /* ---------- Wiring ---------- */
+      populateLevelSelect(levelSelect);
+      try {
+        const last = localStorage.getItem('hanzidle:lastLevel');
+        if (last && Array.from(levelSelect.options).some(o => o.value === last)) {
+          levelSelect.value = last;
+        }
+      } catch { /* ignore */ }
+
+      playBtn.addEventListener('click', () => startLevel(levelSelect.value));
+
+      changeLevelBtn.addEventListener('click', () => {
+        gamePanel.hidden = true;
+        setupPanel.hidden = false;
+        hideSuggestions();
+      });
+
+      guessInput.addEventListener('input', (e) => updateSuggestions(e.target.value));
+
+      guessInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); moveActive(1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(-1); }
+        else if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
+        else if (e.key === 'Escape') { hideSuggestions(); }
+      });
+
+      guessInput.addEventListener('blur', () => {
+        setTimeout(() => hideSuggestions(), 150);
+      });
+
+      suggestionsEl.addEventListener('mousedown', (e) => {
+        const item = e.target.closest('.suggestion-item');
+        if (!item) return;
+        e.preventDefault();
+        const idx = Number(item.dataset.index);
+        const picked = currentSuggestions[idx];
+        if (picked) submitPicked(picked);
+      });
+
+      submitGuessBtn.addEventListener('click', handleSubmit);
+
+      copyResultBtn.addEventListener('click', async () => {
+        const text = buildShareText();
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast('Result copied to clipboard!', 'success');
+        } catch {
+          showToast('Could not copy — please select the text manually.', 'danger');
+        }
+      });
+
+      infoBtn.addEventListener('click', () => { rulesOverlay.hidden = false; });
+      rulesCloseBtn.addEventListener('click', () => { rulesOverlay.hidden = true; });
+      rulesOverlay.addEventListener('click', (e) => {
+        if (e.target === rulesOverlay) rulesOverlay.hidden = true;
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !rulesOverlay.hidden) rulesOverlay.hidden = true;
+      });
+    });
+  </script>
+</body>
+
+</html>

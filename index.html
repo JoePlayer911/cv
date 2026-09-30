@@ -66,6 +66,7 @@
     <!-- Projects -->
     <section class="section container reveal" id="projects">
       <h2 class="section__heading">Projects</h2>
+
       <div class="projects-grid" id="projects-grid">
         <!-- Injected by JS -->
       </div>
@@ -94,13 +95,54 @@
       { name: 'Node.js',      level: 60 },
     ];
 
-    const projects = [
+    const games = [
       {
-        title: "Xingqiu's Novel Adventure",
-        url: 'xingqiu.html',
-        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEgHk3Q-_Ih12oDYoH1EdHkxvsWcY5wsy8GISLeuHOYYUJ7UGF5jkldhBsZzdUScR4RqayMozkEfkntsPIyIAzeqjLRaPbhac8W9omBKlPlV0pz3_nePtBGC9XpKrzGl5yXxxvRC0eyLAUzA1EW5kb9PObksujRq6fejbFJd9oWbBml2w7PKFnx71DBS_Tw',
-        description: 'Explore the vast vocabularies along with Xingqiu.',
+        title: 'Word Dragon 字龙',
+        url: 'worddragon.html',
+        icon: '🐉',
+        gradient: 'linear-gradient(135deg, #0f766e, #b91c1c)',
+        badge: 'New',
+        description: 'Snake, reborn as a dragon. Eat the right characters in the right order to spell each word, and dodge the decoys.',
       },
+      {
+        title: 'Night Market 夜市',
+        url: 'nightmarket.html',
+        icon: '🏮',
+        gradient: 'linear-gradient(135deg, #7c2d12, #dc2626 50%, #f59e0b)',
+        badge: 'New',
+        description: 'Run a street-food stall for 7 nights. Customers order by meaning, pinyin, or out loud, and every dish is a word.',
+      },
+      {
+        title: 'Hanzidle',
+        url: 'hanzidle.html',
+        icon: '🧩',
+        gradient: 'linear-gradient(135deg, #3b8bff, #7c3aed)',
+        description: "Guess today's mystery vocab word in 6 tries. One puzzle a day for everyone, one leaderboard.",
+      },
+      {
+        title: 'Vocab Duel Arena',
+        url: 'duelarena.html',
+        icon: '⚔️',
+        gradient: 'linear-gradient(135deg, #ef4444, #f59e0b)',
+        description: 'Challenge a friend to a live 1v1 vocab battle with a room code. Fastest correct answer lands the hit.',
+      },
+      {
+        title: 'Vocab Royale: Survival Arena',
+        url: 'vocabroyale.html',
+        icon: '🔥',
+        gradient: 'linear-gradient(135deg, #f97316, #dc2626)',
+        description: 'Waves of enemies, AI-riddled bosses, and rising chaos. Type fast and survive longer.',
+      },
+      {
+        title: 'Memory Grid Speedrun',
+        url: 'memorygrid.html',
+        icon: '🧠',
+        gradient: 'linear-gradient(135deg, #06b6d4, #6366f1)',
+        description: "Flip, match, and beat the clock on today's shared memory board.",
+      },
+    ];
+
+    const projects = [
       {
         title: 'Logic Computer — Now on the Web',
         url: 'https://logiccomputer.pythonanywhere.com/',
@@ -112,54 +154,6 @@
         url: 'https://logiccomputer.pythonanywhere.com/aissistant',
         thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEia6HuEAdeHkPUILYawUKCwHnV-oOJZA5T9KBpDHEEB6AlzcBcOCREFnlWgn1vQVMgnZk5tZAVPx-EOeMkgNQfnjxxprEY81DMKWvQfycoQtl_MvA7LiwIHgQmfRd2hjR822p_bT8ImYa149t7E_KCBrIShy68DIJDHVdRcfvpna2wY4PKtI4ogG-a9ixU',
         description: "Meet Lidya, Logic Computer's Trustworthy Receptionist.",
-      },
-      {
-        title: 'Quiz on Web',
-        url: 'quiz.html',
-        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEiFOzNzgpulp6qniHaMzbYH8G-gX_0ci_fKgg9Bz0wpEc4HkfYBdkeAADVEJH0iqm0fqEjYcwDKZ_TURFlUMC9J-HOck7wnL45WlIUqun00-gqqdfLXAamE-kSDjd63ywNAyHZAOpu9lYy2nwi4iZp6BqSsXpl6RTnTSys5ao4FcWcVAoA6Yxqj65zBxo4',
-        description: 'A simple, yet very useful quiz app with save & load feature for practicing your language. A duolingo-lite!',
-      },
-      {
-        title: 'LLM Powered Quiz',
-        url: 'llmquiz.html',
-        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEhLSIbbwrVKdgRJmgncAiMBd8ZSk09ZblHnjnVBBTHTJ6HlsoIsYnJDKo9wtGtC2T7453Z6ctlOCRyG4JfLQ5K-bG2Hw-oIw9fJFNbxRFxmkkf9UoLLSRBtzLIJkvL2fiqnnMZAlpHNSDYesgpQyC1G-4nk4nfAmZF-jyTRb2Y8xJA9uhjpPduDd4yK5aU',
-        description: 'A more advanced, unrestrained quiz app with save & load feature for practicing your language. A duolingo-LLM!',
-      },
-      {
-        title: 'ClozeLLM',
-        url: 'clozellm.html',
-        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEhLSIbbwrVKdgRJmgncAiMBd8ZSk09ZblHnjnVBBTHTJ6HlsoIsYnJDKo9wtGtC2T7453Z6ctlOCRyG4JfLQ5K-bG2Hw-oIw9fJFNbxRFxmkkf9UoLLSRBtzLIJkvL2fiqnnMZAlpHNSDYesgpQyC1G-4nk4nfAmZF-jyTRb2Y8xJA9uhjpPduDd4yK5aU',
-        description: 'Delve into fresh stories while learning new language! ClozeLLM will pick 5 random vocabs to train and generates new stories everytime!',
-      },
-      {
-        title: 'Feud Quiz',
-        url: 'feud.html',
-        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEgDiynBLp1NyWyFPegKNK66taUK8hB7jfo8I-An0RCidaFVF_2HfDw7I3MR8MO8I2UQvYEmCHFG2Xxb5cndm-Q8OEP-Mb4OeOg9CimAjEoE_2b_ZQLhmdFYXzYXZK4Osh74aICs758aWFKJYdQQ5-g8ucpoLR2ftOpmbk9zYNXa1zpW0CY1ymLhSu_nCKk=w320-h151',
-        description: 'Play Family Feud with your families on the web! For my dearest students!',
-      },
-      {
-        title: 'Runner Quiz',
-        url: 'runner.html',
-        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEjQ6P7sHPEaofu0h52R2pEv7_wiR7am6tDdCMKtuuMU3l7PjCDHMeA8pukDzkMJGQ9qd5UFhiBxnRLGKE9HRD8unm4KGH6wIv-bzuXr4_tNX19DsdkXKMkUwaetO5DTXcLojGLLEgu377HSgp_qCT_jOggYhLQRQOSdp7aCiqfFZ9jDsSqJsfqJa6Nqg0s',
-        description: 'Play up to 4 players in this Math & English runner quiz game! For my dearest students!',
-      },
-      {
-        title: 'Protect Mondstadt',
-        url: 'shooter.html',
-        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEgHk3Q-_Ih12oDYoH1EdHkxvsWcY5wsy8GISLeuHOYYUJ7UGF5jkldhBsZzdUScR4RqayMozkEfkntsPIyIAzeqjLRaPbhac8W9omBKlPlV0pz3_nePtBGC9XpKrzGl5yXxxvRC0eyLAUzA1EW5kb9PObksujRq6fejbFJd9oWbBml2w7PKFnx71DBS_Tw',
-        description: 'Shoot slimes using the correct pinyin answer! A vocabulary shooter game.',
-      },
-      {
-        title: 'Vocab Hunt',
-        url: 'vocabhunt.html',
-        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEhLSIbbwrVKdgRJmgncAiMBd8ZSk09ZblHnjnVBBTHTJ6HlsoIsYnJDKo9wtGtC2T7453Z6ctlOCRyG4JfLQ5K-bG2Hw-oIw9fJFNbxRFxmkkf9UoLLSRBtzLIJkvL2fiqnnMZAlpHNSDYesgpQyC1G-4nk4nfAmZF-jyTRb2Y8xJA9uhjpPduDd4yK5aU',
-        description: 'Guess the word from LLM-generated hints! A vocabulary hunting game.',
-      },
-      {
-        title: 'Word Safari',
-        url: 'wordsafari.html',
-        thumbnail: 'https://blogger.googleusercontent.com/img/a/AVvXsEiFOzNzgpulp6qniHaMzbYH8G-gX_0ci_fKgg9Bz0wpEc4HkfYBdkeAADVEJH0iqm0fqEjYcwDKZ_TURFlUMC9J-HOck7wnL45WlIUqun00-gqqdfLXAamE-kSDjd63ywNAyHZAOpu9lYy2nwi4iZp6BqSsXpl6RTnTSys5ao4FcWcVAoA6Yxqj65zBxo4',
-        description: 'Learn English with fun emoji-based word matching! For young learners.',
       },
       {
         title: 'Gemini TTS + Live2D',
@@ -189,25 +183,32 @@
 
     /* ── Render Projects ─────────────────────────────────── */
 
-    const projectsGrid = document.getElementById('projects-grid');
-    projects.forEach(project => {
-      const isExternal = project.url.startsWith('http');
-      const card = document.createElement('a');
-      card.className = 'project-card';
-      card.href = project.url;
-      if (isExternal) {
-        card.target = '_blank';
-        card.rel = 'noopener noreferrer';
-      }
-      card.innerHTML = `
-        <img class="project-card__img" src="${project.thumbnail}" alt="${project.title}" loading="lazy" />
-        <div class="project-card__body">
-          <h3 class="project-card__title">${project.title}</h3>
-          <p class="project-card__desc">${project.description}</p>
-        </div>
-      `;
-      projectsGrid.appendChild(card);
-    });
+    function renderProjectCards(grid, list) {
+      list.forEach(project => {
+        const isExternal = project.url.startsWith('http');
+        const card = document.createElement('a');
+        card.className = 'project-card';
+        card.href = project.url;
+        if (isExternal) {
+          card.target = '_blank';
+          card.rel = 'noopener noreferrer';
+        }
+        const thumbHtml = project.thumbnail
+          ? `<img class="project-card__img" src="${project.thumbnail}" alt="${project.title}" loading="lazy" />`
+          : `<div class="project-card__thumb" style="background:${project.gradient}" aria-hidden="true">${project.icon || '🎮'}</div>`;
+        card.innerHTML = `
+          ${project.badge ? `<span class="project-card__badge">${project.badge}</span>` : ''}
+          ${thumbHtml}
+          <div class="project-card__body">
+            <h3 class="project-card__title">${project.title}</h3>
+            <p class="project-card__desc">${project.description}</p>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    renderProjectCards(document.getElementById('projects-grid'), [...games, ...projects]);
 
     /* ── Scroll Reveal (Intersection Observer) ───────────── */
 

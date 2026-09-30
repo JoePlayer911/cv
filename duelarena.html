@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vocab Duel Arena</title>
+  <link rel="stylesheet" href="projects.css" />
+  <link rel="stylesheet" href="games.css" />
+  <script src="shared.js" defer></script>
+  <script src="daily.js" defer></script>
+  <!-- PeerJS: peer-to-peer rooms through the free public PeerJS broker (no backend needed). -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"
+    onerror="var s=document.createElement('script');s.src='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';document.head.appendChild(s);"></script>
+  <style>
+    /* ---------- Duel Arena page-specific styling ---------- */
+
+    .record-chip {
+      text-align: center;
+      color: var(--clr-text-muted);
+      font-size: 0.9rem;
+      margin: -6px 0 16px;
+    }
+
+    .mode-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.15rem;
+      margin: 0 0 4px;
+    }
+    .mode-sub { margin: 0 0 10px; color: var(--clr-text-muted); font-size: 0.88rem; }
+    .panel + .panel { margin-top: 14px; }
+
+    .join-row > .input { flex: 1 1 120px; }
+    .online-status { min-height: 1.2em; margin: 8px 0 0; color: var(--clr-text-muted); font-size: 0.88rem; text-align: center; }
+    .online-status--error { color: var(--clr-danger); }
+
+    .lobby-code {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(2rem, 10vw, 2.8rem);
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-align: center;
+      color: var(--clr-gold);
+      margin: 4px 0 10px;
+    }
+    .lobby-level { text-align: center; color: var(--clr-text-muted); font-size: 0.9rem; margin: 0 0 12px; }
+
+    .lobby-copy-row { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+
+    .lobby-players { display: flex; flex-direction: column; gap: 8px; margin: 18px 0; }
+
+    .player-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      background: rgba(255 255 255 / 0.04);
+      border: 1px solid var(--clr-border);
+    }
+    .player-chip--me { border-color: var(--clr-accent); background: rgba(59 139 255 / 0.12); }
+    .player-chip--empty { border-style: dashed; color: var(--clr-text-muted); }
+    .player-chip__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+    .badge--pending { background: rgba(255 255 255 / 0.08); color: var(--clr-text-muted); }
+
+    .lobby-status { text-align: center; color: var(--clr-text-muted); font-size: 0.9rem; margin: 4px 0 16px; min-height: 1.2em; }
+
+    .battle-topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .battle-mode { font-size: 0.8rem; color: var(--clr-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .duel-hud { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+    .duel-hud__player { flex: 1 1 0; min-width: 0; position: relative; }
+    .duel-hud__name {
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .duel-hud__player--opp { text-align: right; }
+    .duel-vs {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      color: var(--clr-text-muted);
+      font-size: 0.85rem;
+      flex: 0 0 auto;
+      padding-top: 22px;
+    }
+
+    .hp-bar {
+      position: relative;
+      height: 16px;
+      border-radius: var(--radius-pill);
+      background: rgba(255 255 255 / 0.08);
+      overflow: hidden;
+      border: 1px solid var(--clr-border);
+    }
+    .hp-bar__fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--clr-success), #4ade80);
+      transition: width 0.5s ease, background 0.3s ease;
+    }
+    .hp-bar__fill--opp { background: linear-gradient(90deg, var(--clr-accent-light), var(--clr-accent)); }
+    .hp-bar__fill--low { background: linear-gradient(90deg, var(--clr-danger), #f87171) !important; }
+    .hp-bar__text {
+      font-size: 0.75rem;
+      color: var(--clr-text-muted);
+      margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .duel-hud__player--opp .hp-bar__text { text-align: right; }
+
+    .q-timer {
+      height: 5px;
+      border-radius: var(--radius-pill);
+      background: rgba(255 255 255 / 0.08);
+      overflow: hidden;
+      margin: 0 0 10px;
+    }
+    .q-timer__fill { height: 100%; width: 100%; background: var(--clr-gold); }
+
+    .duel-prompt {
+      text-align: center;
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(1.8rem, 8vw, 2.6rem);
+      font-weight: 700;
+      margin: 6px 0 2px;
+      word-break: break-word;
+    }
+    .duel-pinyin { text-align: center; color: var(--clr-text-muted); margin-bottom: 16px; min-height: 1.2em; }
+
+    .countdown-display {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(4rem, 22vw, 7rem);
+      font-weight: 800;
+      color: var(--clr-gold);
+      text-shadow: 0 0 40px var(--clr-accent-glow);
+    }
+    .countdown-display--pop { animation: pop 0.6s ease; }
+
+    .result-title {
+      font-family: 'Outfit', sans-serif;
+      text-align: center;
+      font-size: clamp(1.6rem, 7vw, 2.2rem);
+      margin: 0 0 8px;
+    }
+    .result-title--win { color: var(--clr-success); }
+    .result-title--lose { color: var(--clr-danger); }
+    .result-title--draw { color: var(--clr-gold); }
+    #result-detail { text-align: center; color: var(--clr-text-muted); margin-bottom: 8px; }
+    .result-note { text-align: center; color: var(--clr-text-muted); font-size: 0.88rem; min-height: 1.2em; margin: 0 0 14px; }
+    .result-actions { display: flex; flex-direction: column; gap: 10px; }
+
+    .duel-damage-pop { font-size: 1.15rem; }
+
+    @media (min-width: 480px) {
+      .result-actions { flex-direction: row; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .countdown-display--pop, .hp-bar__fill, .q-timer__fill { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+
+<body class="game-shell">
+  <nav class="back-nav"><a href="index.html" class="back-nav__link"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" /></svg> Home</a></nav>
+
+  <div class="game-wrap">
+    <header class="game-header">
+      <h1 class="game-header__title">⚔️ Vocab Duel Arena</h1>
+      <p class="game-header__subtitle">1v1 vocab battles — answer fast, hit hard, drop your opponent to zero HP.</p>
+    </header>
+
+    <div class="record-chip" id="record-chip">Online record: 0W – 0L</div>
+
+    <!-- ===================== LANDING ===================== -->
+    <section id="screen-landing">
+      <div class="panel">
+        <div class="field-row">
+          <label for="level-select">Vocab level</label>
+          <select id="level-select" class="select"></select>
+        </div>
+        <div class="field-row">
+          <label for="nickname-input">Nickname</label>
+          <input id="nickname-input" class="input" type="text" maxlength="24" placeholder="Enter your name" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="mode-title">🤖 Practice vs Bot</h2>
+        <p class="mode-sub">Duel 小龙 (Xiao Long) — works offline, any time.</p>
+        <div class="field-row">
+          <label for="bot-difficulty">Difficulty</label>
+          <select id="bot-difficulty" class="select">
+            <option value="easy">Easy</option>
+            <option value="normal" selected>Normal</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+        <button id="btn-bot" class="btn btn--primary btn--block" type="button">🐉 Fight 小龙</button>
+      </div>
+
+      <div class="panel">
+        <h2 class="mode-title">🌐 Duel a friend</h2>
+        <p class="mode-sub">Create a room and share the code or invite link. Connects directly browser-to-browser.</p>
+        <button id="btn-create-room" class="btn btn--primary btn--block" type="button">⚔️ Create Room</button>
+
+        <div class="field-row join-row" style="margin-top: 14px;">
+          <input id="join-code-input" class="input" type="text" maxlength="5" placeholder="ROOM CODE" aria-label="Room code"
+            style="text-transform: uppercase; letter-spacing: 0.14em; text-align: center;" autocomplete="off" />
+          <button id="btn-join-room" class="btn btn--success" type="button">Join Room</button>
+        </div>
+        <p class="online-status" id="online-status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <!-- ===================== LOBBY ===================== -->
+    <section id="screen-lobby" hidden>
+      <div class="panel">
+        <h2 style="margin: 0 0 4px; text-align: center; font-family: 'Outfit', sans-serif;">Room Code</h2>
+        <div class="lobby-code" id="lobby-code-display">-----</div>
+        <p class="lobby-level" id="lobby-level"></p>
+        <div class="lobby-copy-row">
+          <button id="btn-copy-code" class="btn btn--ghost btn--sm" type="button">📋 Copy Code</button>
+          <button id="btn-copy-link" class="btn btn--ghost btn--sm" type="button">🔗 Copy invite link</button>
+        </div>
+
+        <div class="lobby-players" id="lobby-players-list"></div>
+
+        <p class="lobby-status" id="lobby-status">Waiting for opponent to join…</p>
+
+        <button id="btn-ready" class="btn btn--success btn--block" type="button" disabled>Ready Up</button>
+        <div style="height: 10px;"></div>
+        <button id="btn-leave-lobby" class="btn btn--ghost btn--block" type="button">Leave Lobby</button>
+      </div>
+    </section>
+
+    <!-- ===================== BATTLE ===================== -->
+    <section id="screen-battle" hidden>
+      <div class="battle-topbar">
+        <span class="battle-mode" id="battle-mode"></span>
+        <button id="btn-leave-battle" class="btn btn--ghost btn--sm" type="button">🏳️ Forfeit</button>
+      </div>
+
+      <div class="duel-hud">
+        <div class="duel-hud__player" id="my-hp-wrap">
+          <div class="duel-hud__name" id="my-hud-name">You</div>
+          <div class="hp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" aria-label="Your HP">
+            <div class="hp-bar__fill" id="my-hp-fill"></div>
+          </div>
+          <div class="hp-bar__text"><span id="my-hp-text">100</span> HP</div>
+        </div>
+        <div class="duel-vs">VS</div>
+        <div class="duel-hud__player duel-hud__player--opp" id="opp-hp-wrap">
+          <div class="duel-hud__name" id="opp-hud-name">Opponent</div>
+          <div class="hp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" aria-label="Opponent HP">
+            <div class="hp-bar__fill hp-bar__fill--opp" id="opp-hp-fill"></div>
+          </div>
+          <div class="hp-bar__text"><span id="opp-progress">Q1</span> · <span id="opp-hp-text">100</span> HP</div>
+        </div>
+      </div>
+
+      <div class="hud">
+        <div class="hud__stat hud__stat--gold">
+          <span class="hud__stat-value" id="my-score">0</span>
+          <span class="hud__stat-label">Your Score</span>
+        </div>
+        <div class="hud__stat hud__stat--gold">
+          <span class="hud__stat-value" id="opp-score">0</span>
+          <span class="hud__stat-label">Opp Score</span>
+        </div>
+        <div class="hud__stat">
+          <span class="hud__stat-value" id="question-counter">1/15</span>
+          <span class="hud__stat-label">Question</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="q-timer" aria-hidden="true"><div class="q-timer__fill" id="q-timer-fill"></div></div>
+        <div class="duel-prompt" id="duel-prompt">Get ready…</div>
+        <div class="duel-pinyin" id="duel-pinyin"></div>
+        <div class="option-grid" id="duel-options"></div>
+      </div>
+    </section>
+
+    <!-- ===================== RESULT ===================== -->
+    <section id="screen-result" hidden>
+      <div class="panel">
+        <h2 class="result-title" id="result-title">You Win!</h2>
+        <p id="result-detail">Final score.</p>
+        <p class="result-note" id="result-note" aria-live="polite"></p>
+        <div class="result-actions">
+          <button id="btn-rematch" class="btn btn--primary btn--block" type="button">🔁 Rematch</button>
+          <button id="btn-back-menu" class="btn btn--ghost btn--block" type="button">Back to Menu</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-overlay" id="countdown-overlay" hidden>
+    <div class="countdown-display" id="countdown-text" aria-live="assertive">3</div>
+  </div>
+
+  <div class="toast-container" id="toast-container" aria-live="polite" role="status"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      'use strict';
+
+      /* ---------------------------------------------------------
+         Element references
+      --------------------------------------------------------- */
+      const $ = (id) => document.getElementById(id);
+      const levelSelect = $('level-select');
+      const nicknameInput = $('nickname-input');
+      const botDifficultySelect = $('bot-difficulty');
+      const botBtn = $('btn-bot');
+      const createBtn = $('btn-create-room');
+      const joinBtn = $('btn-join-room');
+      const joinCodeInput = $('join-code-input');
+      const onlineStatusEl = $('online-status');
+      const recordChip = $('record-chip');
+
+      const lobbyCodeDisplay = $('lobby-code-display');
+      const lobbyLevelEl = $('lobby-level');
+      const lobbyPlayersList = $('lobby-players-list');
+      const lobbyStatus = $('lobby-status');
+      const readyBtn = $('btn-ready');
+      const copyCodeBtn = $('btn-copy-code');
+      const copyLinkBtn = $('btn-copy-link');
+      const leaveLobbyBtn = $('btn-leave-lobby');
+
+      const battleModeEl = $('battle-mode');
+      const leaveBattleBtn = $('btn-leave-battle');
+      const myHudName = $('my-hud-name');
+      const oppHudName = $('opp-hud-name');
+      const myHpWrap = $('my-hp-wrap');
+      const oppHpWrap = $('opp-hp-wrap');
+      const myHpFill = $('my-hp-fill');
+      const oppHpFill = $('opp-hp-fill');
+      const myHpText = $('my-hp-text');
+      const oppHpText = $('opp-hp-text');
+      const oppProgressEl = $('opp-progress');
+      const myHpBarEl = myHpWrap.querySelector('.hp-bar');
+      const oppHpBarEl = oppHpWrap.querySelector('.hp-bar');
+      const myScoreEl = $('my-score');
+      const oppScoreEl = $('opp-score');
+      const questionCounterEl = $('question-counter');
+      const timerFill = $('q-timer-fill');
+      const promptEl = $('duel-prompt');
+      const pinyinEl = $('duel-pinyin');
+      const optionsEl = $('duel-options');
+
+      const resultTitleEl = $('result-title');
+      const resultDetailEl = $('result-detail');
+      const resultNoteEl = $('result-note');
+      const rematchBtn = $('btn-rematch');
+      const backMenuBtn = $('btn-back-menu');
+
+      const countdownOverlay = $('countdown-overlay');
+      const countdownText = $('countdown-text');
+      const toastContainer = $('toast-container');
+
+      /* ---------------------------------------------------------
+         Constants
+      --------------------------------------------------------- */
+      const RECORD_KEY = 'duelarenaRecord';          // online W/L (kept from the old version)
+      const BOT_RECORD_KEY = 'duelarenaBotRecord';   // vs 小龙
+      const NAME_KEY = 'playerDisplayName';          // shared with the other games
+      const SCREENS = ['landing', 'lobby', 'battle', 'result'];
+      const PEER_PREFIX = 'vocabduel-';
+      const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1
+      const CODE_LEN = 5;
+      const MAX_HP = 100;
+      const QUESTION_COUNT = 15;
+      const QUESTION_MS = 12000;
+      const FEEDBACK_MS = 900;
+      const CONNECT_TIMEOUT_MS = 15000;
+      const HEARTBEAT_MS = 4000;
+      const HEARTBEAT_DEAD_MS = 16000;
+      const BOT_NAME = '小龙 Xiao Long';
+      const BOT_LEVELS = {
+        easy:   { label: 'Easy',   accuracy: 0.55, minMs: 3500, maxMs: 7000 },
+        normal: { label: 'Normal', accuracy: 0.75, minMs: 2300, maxMs: 5000 },
+        hard:   { label: 'Hard',   accuracy: 0.90, minMs: 1300, maxMs: 3000 },
+      };
+
+      /* ---------------------------------------------------------
+         State
+      --------------------------------------------------------- */
+      const state = {
+        mode: null,          // 'bot' | 'host' | 'guest'
+        mySide: 0,           // 0 = host / local player, 1 = guest / bot
+        currentScreen: 'landing',
+        // networking
+        peer: null,
+        conn: null,
+        code: null,
+        connectTimer: null,
+        heartbeat: null,
+        lastSeen: 0,
+        oppName: 'Opponent',
+        oppReady: false,
+        meReady: false,
+        roomLevel: null,
+        roomLevelLabel: '',
+        // match
+        levelKey: null,
+        questions: null,
+        engine: null,        // host / bot only
+        snap: null,          // latest match snapshot (all modes)
+        myIndex: 0,
+        answered: false,
+        questionStart: 0,
+        inMatch: false,
+        resultShown: false,
+        timers: new Set(),
+        botDifficulty: 'normal',
+        rematchMe: false,
+        rematchOpp: false,
+        oppGone: false,
+        starting: false,
+      };
+
+      /* ---------------------------------------------------------
+         Small helpers
+      --------------------------------------------------------- */
+      function toast(message, type) {
+        const el = document.createElement('div');
+        el.className = 'toast' + (type ? ' toast--' + type : '');
+        el.textContent = message;
+        toastContainer.appendChild(el);
+        setTimeout(() => el.remove(), 3600);
+      }
+
+      function showScreen(name) {
+        SCREENS.forEach((s) => {
+          const el = $('screen-' + s);
+          if (el) el.hidden = s !== name;
+        });
+        state.currentScreen = name;
+        window.scrollTo(0, 0);
+      }
+
+      function later(fn, ms) {
+        const id = setTimeout(() => { state.timers.delete(id); fn(); }, ms);
+        state.timers.add(id);
+        return id;
+      }
+
+      function clearMatchTimers() {
+        state.timers.forEach((id) => clearTimeout(id));
+        state.timers.clear();
+      }
+
+      function cleanName(name, fallback) {
+        const s = String(name == null ? '' : name).replace(/\s+/g, ' ').trim().slice(0, 24);
+        return s || fallback;
+      }
+
+      function myName() {
+        return cleanName(nicknameInput.value, 'Player');
+      }
+
+      function setOnlineStatus(text, isError) {
+        onlineStatusEl.textContent = text || '';
+        onlineStatusEl.classList.toggle('online-status--error', !!isError);
+        if (text && state.currentScreen === 'landing') {
+          try { onlineStatusEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (err) { /* ignore */ }
+        }
+      }
+
+      function randomCode() {
+        let s = '';
+        const buf = new Uint32Array(CODE_LEN);
+        crypto.getRandomValues(buf);
+        for (let i = 0; i < CODE_LEN; i++) s += CODE_ALPHABET[buf[i] % CODE_ALPHABET.length];
+        return s;
+      }
+
+      function sanitizeCode(raw) {
+        return String(raw || '').toUpperCase().split('').filter((c) => CODE_ALPHABET.includes(c)).join('').slice(0, CODE_LEN);
+      }
+
+      /* ---------------------------------------------------------
+         Local W/L records
+      --------------------------------------------------------- */
+      function loadRecord(key) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            return { wins: parsed.wins || 0, losses: parsed.losses || 0 };
+          }
+        } catch (err) { /* storage unavailable — non-fatal */ }
+        return { wins: 0, losses: 0 };
+      }
+
+      function saveRecord(key, record) {
+        try { localStorage.setItem(key, JSON.stringify(record)); } catch (err) { /* ignore */ }
+      }
+
+      function renderRecord() {
+        const online = loadRecord(RECORD_KEY);
+        const bot = loadRecord(BOT_RECORD_KEY);
+        recordChip.textContent = `Online: ${online.wins}W – ${online.losses}L · vs 小龙: ${bot.wins}W – ${bot.losses}L`;
+      }
+
+      function recordResult(result) {
+        if (result !== 'win' && result !== 'lose') return;
+        const key = state.mode === 'bot' ? BOT_RECORD_KEY : RECORD_KEY;
+        const record = loadRecord(key);
+        if (result === 'win') record.wins += 1;
+        else record.losses += 1;
+        saveRecord(key, record);
+        renderRecord();
+      }
+
+      /* ---------------------------------------------------------
+         Landing setup
+      --------------------------------------------------------- */
+      populateLevelSelect(levelSelect);
+      renderRecord();
+      try { nicknameInput.value = localStorage.getItem(NAME_KEY) || ''; } catch (err) { /* ignore */ }
+
+      nicknameInput.addEventListener('change', () => {
+        try { localStorage.setItem(NAME_KEY, nicknameInput.value.trim().slice(0, 24)); } catch (err) { /* ignore */ }
+      });
+
+      joinCodeInput.addEventListener('input', () => {
+        joinCodeInput.value = sanitizeCode(joinCodeInput.value);
+      });
+      joinCodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); joinBtn.click(); }
+      });
+
+      function setLandingBusy(busy) {
+        createBtn.disabled = busy;
+        joinBtn.disabled = busy;
+        botBtn.disabled = busy;
+      }
+
+      /* ---------------------------------------------------------
+         Questions
+      --------------------------------------------------------- */
+      function buildOptions(question, pool) {
+        const seen = new Set([question.meaning]);
+        const distractors = [];
+        shuffleArray(pool).forEach((v) => {
+          if (distractors.length >= 3 || !v.meaning || seen.has(v.meaning) || v.vocab === question.vocab) return;
+          seen.add(v.meaning);
+          distractors.push(v.meaning);
+        });
+        return shuffleArray([question.meaning, ...distractors]);
+      }
+
+      async function buildQuestions(levelKey) {
+        const words = (await fetchVocabularyFromSheet(levelKey)).filter((w) => w && w.vocab && w.meaning);
+        const picked = shuffleArray(words).slice(0, Math.min(QUESTION_COUNT, words.length));
+        return picked.map((w) => ({
+          vocab: String(w.vocab),
+          pinyin: String(w.pinyin || ''),
+          meaning: String(w.meaning),
+          options: buildOptions(w, words),
+        }));
+      }
+
+      /** Validate a question list received from the other peer. */
+      function sanitizeQuestions(list) {
+        if (!Array.isArray(list)) return null;
+        const out = list.slice(0, 50).map((q) => ({
+          vocab: String((q && q.vocab) || ''),
+          pinyin: String((q && q.pinyin) || ''),
+          meaning: String((q && q.meaning) || ''),
+          options: Array.isArray(q && q.options) ? q.options.slice(0, 6).map(String) : [],
+        })).filter((q) => q.vocab && q.meaning && q.options.includes(q.meaning));
+        return out.length ? out : null;
+      }
+
+      /* ---------------------------------------------------------
+         Match engine — runs on the host (P2P) or locally (bot).
+         Side 0 = host / you, side 1 = guest / bot.
+      --------------------------------------------------------- */
+      function damageFor(ms) {
+        const speed = Math.max(0, 1 - ms / QUESTION_MS);   // 1 = instant, 0 = at the buzzer
+        return 10 + Math.round(10 * speed);                 // 10–20 damage
+      }
+
+      function createEngine(count) {
+        const e = {
+          n: count, hp: [MAX_HP, MAX_HP], score: [0, 0], next: [0, 0],
+          over: false, winner: null, reason: null, hit: null, seq: 0,
+        };
+        function finish(winner, reason) { e.over = true; e.winner = winner; e.reason = reason; }
+        e.submit = (side, index, correct, ms) => {
+          if (e.over || index !== e.next[side]) return false;   // ignore duplicates / out of order
+          e.next[side] = index + 1;
+          e.hit = null;
+          if (correct) {
+            const dmg = damageFor(Math.max(0, Number(ms) || 0));
+            e.hp[1 - side] = Math.max(0, e.hp[1 - side] - dmg);
+            e.score[side] += 1;
+            e.hit = { side: 1 - side, dmg };
+          }
+          if (e.hp[1 - side] <= 0) finish(side, 'ko');
+          else if (e.next[0] >= e.n && e.next[1] >= e.n) {
+            if (e.score[0] !== e.score[1]) finish(e.score[0] > e.score[1] ? 0 : 1, 'points');
+            else if (e.hp[0] !== e.hp[1]) finish(e.hp[0] > e.hp[1] ? 0 : 1, 'points');
+            else finish(-1, 'points');
+          }
+          e.seq += 1;
+          return true;
+        };
+        e.forfeit = (side, reason) => { if (!e.over) { finish(1 - side, reason || 'forfeit'); e.hit = null; e.seq += 1; } };
+        e.snapshot = () => ({
+          n: e.n, hp: e.hp.slice(), score: e.score.slice(), next: e.next.slice(),
+          over: e.over, winner: e.winner, reason: e.reason, hit: e.hit, seq: e.seq,
+        });
+        return e;
+      }
+
+      /* ---------------------------------------------------------
+         Battle rendering
+      --------------------------------------------------------- */
+      function renderSnap(snap) {
+        const me = state.mySide;
+        const opp = 1 - me;
+        const myHp = Math.max(0, Math.min(MAX_HP, snap.hp[me]));
+        const oppHp = Math.max(0, Math.min(MAX_HP, snap.hp[opp]));
+        myHpFill.style.width = myHp + '%';
+        oppHpFill.style.width = oppHp + '%';
+        myHpFill.classList.toggle('hp-bar__fill--low', myHp <= 30);
+        oppHpFill.classList.toggle('hp-bar__fill--low', oppHp <= 30);
+        myHpBarEl.setAttribute('aria-valuenow', String(Math.round(myHp)));
+        oppHpBarEl.setAttribute('aria-valuenow', String(Math.round(oppHp)));
+        myHpText.textContent = String(Math.round(myHp));
+        oppHpText.textContent = String(Math.round(oppHp));
+        myScoreEl.textContent = String(snap.score[me]);
+        oppScoreEl.textContent = String(snap.score[opp]);
+        const oppNext = snap.next[opp];
+        oppProgressEl.textContent = oppNext >= snap.n ? 'Done' : 'Q' + (oppNext + 1);
+        if (snap.hit && snap.hit.dmg) showDamagePop(snap.hit.side === me ? myHpWrap : oppHpWrap, snap.hit.dmg);
+      }
+
+      function showDamagePop(wrapEl, amount) {
+        const pop = document.createElement('div');
+        pop.className = 'score-pop duel-damage-pop';
+        pop.textContent = '-' + amount;
+        pop.style.left = '50%';
+        pop.style.top = '-4px';
+        pop.style.marginLeft = '-14px';
+        wrapEl.appendChild(pop);
+        setTimeout(() => pop.remove(), 850);
+      }
+
+      function runCountdown(onDone) {
+        const seq = ['3', '2', '1', 'FIGHT!'];
+        countdownOverlay.hidden = false;
+        let i = 0;
+        function tick() {
+          countdownText.textContent = seq[i];
+          countdownText.classList.remove('countdown-display--pop');
+          void countdownText.offsetWidth; // restart animation
+          countdownText.classList.add('countdown-display--pop');
+          i += 1;
+          if (i < seq.length) later(tick, 700);
+          else later(() => { countdownOverlay.hidden = true; onDone(); }, 650);
+        }
+        tick();
+      }
+
+      function startTimerBar() {
+        timerFill.style.transition = 'none';
+        timerFill.style.width = '100%';
+        void timerFill.offsetWidth;
+        timerFill.style.transition = `width ${QUESTION_MS}ms linear`;
+        timerFill.style.width = '0%';
+      }
+
+      function stopTimerBar() {
+        const w = getComputedStyle(timerFill).width;
+        timerFill.style.transition = 'none';
+        timerFill.style.width = w;
+      }
+
+      /** Begin a match on this device (all modes). */
+      function beginBattle(questions, levelKey) {
+        clearMatchTimers();
+        state.questions = questions;
+        state.levelKey = levelKey;
+        state.myIndex = 0;
+        state.answered = true;
+        state.inMatch = true;
+        state.resultShown = false;
+        state.rematchMe = false;
+        state.rematchOpp = false;
+        state.snap = { n: questions.length, hp: [MAX_HP, MAX_HP], score: [0, 0], next: [0, 0], over: false, winner: null, reason: null, hit: null, seq: 0 };
+
+        const oppLabel = state.mode === 'bot'
+          ? `${BOT_NAME} (${BOT_LEVELS[state.botDifficulty].label})`
+          : state.oppName;
+        myHudName.textContent = 'You (' + myName() + ')';
+        oppHudName.textContent = oppLabel;
+        battleModeEl.textContent = (state.mode === 'bot' ? 'Practice · ' : 'Online · ') + (state.mode === 'guest' && state.roomLevelLabel ? state.roomLevelLabel : getLevelLabel(levelKey));
+        questionCounterEl.textContent = `1/${questions.length}`;
+        promptEl.textContent = 'Get ready…';
+        pinyinEl.textContent = '';
+        optionsEl.innerHTML = '';
+        timerFill.style.transition = 'none';
+        timerFill.style.width = '100%';
+        renderSnap(state.snap);
+        showScreen('battle');
+
+        runCountdown(() => {
+          showQuestion();
+          if (state.mode === 'bot') scheduleBot(0);
+        });
+      }
+
+      function showQuestion() {
+        if (state.resultShown || !state.inMatch) return;
+        if (state.myIndex >= state.questions.length) {
+          promptEl.textContent = 'Waiting for opponent to finish…';
+          pinyinEl.textContent = '';
+          optionsEl.innerHTML = '';
+          stopTimerBar();
+          questionCounterEl.textContent = `${state.questions.length}/${state.questions.length}`;
+          return;
+        }
+        state.answered = false;
+        const index = state.myIndex;
+        const q = state.questions[index];
+        promptEl.textContent = q.vocab;
+        pinyinEl.textContent = q.pinyin || '';
+        questionCounterEl.textContent = `${index + 1}/${state.questions.length}`;
+
+        optionsEl.innerHTML = '';
+        q.options.forEach((opt) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'option';
+          btn.textContent = opt;
+          btn.addEventListener('click', () => handleAnswer(opt, btn));
+          optionsEl.appendChild(btn);
+        });
+        state.questionStart = performance.now();
+        startTimerBar();
+        later(() => { if (!state.answered && state.myIndex === index) handleAnswer(null, null); }, QUESTION_MS);
+      }
+
+      function handleAnswer(selected, btnEl) {
+        if (state.answered || state.resultShown || !state.inMatch) return;
+        state.answered = true;
+        stopTimerBar();
+        const index = state.myIndex;
+        const question = state.questions[index];
+        const ms = Math.round(performance.now() - state.questionStart);
+
+        const optionButtons = Array.from(optionsEl.querySelectorAll('.option'));
+        optionButtons.forEach((o) => o.classList.add('is-disabled'));
+
+        const correct = selected === question.meaning;
+        recordAnswer(state.levelKey || levelSelect.value, question.vocab, correct);
+
+        if (correct) {
+          btnEl.classList.add('is-correct');
+        } else {
+          optionButtons.forEach((o) => { if (o.textContent === question.meaning) o.classList.add('is-correct'); });
+          if (btnEl) btnEl.classList.add('is-incorrect');
+          else toast("⏰ Time's up!", 'danger');
+        }
+
+        submitAnswer(index, correct, ms);
+
+        later(() => {
+          if (state.resultShown) return;
+          state.myIndex = index + 1;
+          showQuestion();
+        }, FEEDBACK_MS);
+      }
+
+      /** Route my answer to the authority (local engine or the host). */
+      function submitAnswer(index, correct, ms) {
+        if (state.mode === 'guest') {
+          send({ t: 'answer', i: index, correct: !!correct, ms });
+        } else if (state.engine) {
+          if (state.engine.submit(0, index, correct, ms)) publish();
+        }
+      }
+
+      /** Host / bot: push the engine state to the screen (and to the guest). */
+      function publish() {
+        const snap = state.engine.snapshot();
+        applySnap(snap);
+        if (state.mode === 'host') send({ t: 'state', s: snap });
+      }
+
+      function applySnap(snap) {
+        if (!state.inMatch) return;
+        if (state.snap && snap.seq < state.snap.seq) return;
+        state.snap = snap;
+        renderSnap(snap);
+        if (snap.over) endMatch(snap);
+      }
+
+      function endMatch(snap) {
+        if (state.resultShown) return;
+        state.resultShown = true;
+        state.inMatch = false;
+        clearMatchTimers();
+        countdownOverlay.hidden = true;
+        const result = snap.winner === -1 ? 'draw' : (snap.winner === state.mySide ? 'win' : 'lose');
+        recordResult(result);
+        // Let the final hit land visually before switching screens.
+        const delay = snap.reason === 'ko' ? 900 : 300;
+        later(() => {
+          renderResultScreen(result, snap);
+          showScreen('result');
+        }, delay);
+      }
+
+      function renderResultScreen(result, snap) {
+        const me = state.mySide;
+        const opp = 1 - me;
+        const oppLabel = state.mode === 'bot' ? '小龙' : state.oppName;
+        const scoreLine = `You ${snap.score[me]} · ${oppLabel} ${snap.score[opp]} (HP ${Math.round(snap.hp[me])} vs ${Math.round(snap.hp[opp])})`;
+        if (result === 'win') {
+          const forfeit = snap.reason === 'disconnect' || snap.reason === 'forfeit';
+          resultTitleEl.textContent = forfeit ? 'Victory by Forfeit!' : (snap.reason === 'ko' ? 'K.O.! You Win!' : 'You Win!');
+          resultTitleEl.className = 'result-title result-title--win';
+          resultDetailEl.textContent = forfeit ? `${oppLabel} left the duel.` : scoreLine;
+        } else if (result === 'lose') {
+          resultTitleEl.textContent = snap.reason === 'ko' ? 'K.O.! You Lose' : 'You Lose';
+          resultTitleEl.className = 'result-title result-title--lose';
+          resultDetailEl.textContent = scoreLine;
+        } else {
+          resultTitleEl.textContent = "It's a Draw!";
+          resultTitleEl.className = 'result-title result-title--draw';
+          resultDetailEl.textContent = scoreLine;
+        }
+        const canRematch = state.mode === 'bot' || (state.conn && state.conn.open && !state.oppGone);
+        rematchBtn.disabled = !canRematch;
+        rematchBtn.textContent = '🔁 Rematch';
+        resultNoteEl.textContent = canRematch ? '' : 'Your opponent has left the room.';
+      }
+
+      /* ---------------------------------------------------------
+         Bot opponent
+      --------------------------------------------------------- */
+      function scheduleBot(index) {
+        if (!state.engine || state.engine.over || index >= state.engine.n) return;
+        const cfg = BOT_LEVELS[state.botDifficulty] || BOT_LEVELS.normal;
+        const ms = Math.round(cfg.minMs + Math.random() * (cfg.maxMs - cfg.minMs));
+        later(() => {
+          if (!state.inMatch || state.mode !== 'bot') return;
+          const correct = Math.random() < cfg.accuracy;
+          if (state.engine.submit(1, index, correct, ms)) publish();
+          scheduleBot(index + 1);
+        }, ms + FEEDBACK_MS * (index > 0 ? 1 : 0));
+      }
+
+      async function startBotMatch() {
+        const levelKey = levelSelect.value;
+        if (!levelKey || levelKey === ADD_SHEET_OPTION) { toast('Pick a level first.', 'danger'); return; }
+        teardownNetwork();
+        setLandingBusy(true);
+        try {
+          state.mode = 'bot';
+          state.mySide = 0;
+          state.botDifficulty = BOT_LEVELS[botDifficultySelect.value] ? botDifficultySelect.value : 'normal';
+          const questions = await buildQuestions(levelKey);
+          if (!questions.length) throw new Error('no questions');
+          state.engine = createEngine(questions.length);
+          beginBattle(questions, levelKey);
+        } catch (err) {
+          console.error('[duelarena] bot match failed:', err);
+          toast('Could not start the match. Please try again.', 'danger');
+        } finally {
+          setLandingBusy(false);
+        }
+      }
+
+      botBtn.addEventListener('click', () => startBotMatch());
+
+      /* ---------------------------------------------------------
+         Peer-to-peer networking (PeerJS)
+      --------------------------------------------------------- */
+      function peerAvailable() {
+        return typeof window.Peer === 'function';
+      }
+
+      function send(msg) {
+        try {
+          if (state.conn && state.conn.open) state.conn.send(msg);
+        } catch (err) {
+          console.warn('[duelarena] send failed:', err);
+        }
+      }
+
+      function stopHeartbeat() {
+        if (state.heartbeat) clearInterval(state.heartbeat);
+        state.heartbeat = null;
+      }
+
+      function startHeartbeat() {
+        stopHeartbeat();
+        state.lastSeen = Date.now();
+        state.heartbeat = setInterval(() => {
+          send({ t: 'ping' });
+          if (state.conn && Date.now() - state.lastSeen > HEARTBEAT_DEAD_MS) {
+            console.warn('[duelarena] opponent timed out');
+            dropConnection(state.conn);
+          }
+        }, HEARTBEAT_MS);
+      }
+
+      function teardownNetwork() {
+        stopHeartbeat();
+        if (state.connectTimer) clearTimeout(state.connectTimer);
+        state.connectTimer = null;
+        const { conn, peer } = state;
+        state.conn = null;
+        state.peer = null;
+        if (conn) { try { conn.close(); } catch (err) { /* ignore */ } }
+        if (peer) { try { peer.destroy(); } catch (err) { /* ignore */ } }
+        state.code = null;
+        state.oppReady = false;
+        state.meReady = false;
+        state.oppGone = false;
+      }
+
+      function resetToLanding(message, type) {
+        clearMatchTimers();
+        state.inMatch = false;
+        state.resultShown = false;
+        state.engine = null;
+        countdownOverlay.hidden = true;
+        teardownNetwork();
+        state.mode = null;
+        setLandingBusy(false);
+        showScreen('landing');
+        if (message) toast(message, type);
+      }
+
+      /** Leave politely: tell the opponent, then close everything. */
+      function leaveRoom() {
+        send({ t: 'leave' });
+        // Detach first so our own close handlers don't react, then give the
+        // 'leave' message a moment to flush before tearing the link down.
+        const { conn, peer } = state;
+        state.conn = null;
+        state.peer = null;
+        setTimeout(() => {
+          try { if (conn) conn.close(); } catch (err) { /* ignore */ }
+          try { if (peer) peer.destroy(); } catch (err) { /* ignore */ }
+        }, 250);
+      }
+
+      function peerErrorMessage(err) {
+        switch (err && err.type) {
+          case 'peer-unavailable': return 'Room not found. Check the code — the host may have left.';
+          case 'browser-incompatible': return 'This browser does not support peer-to-peer connections. Try Practice vs Bot.';
+          case 'network':
+          case 'server-error':
+          case 'socket-error':
+          case 'socket-closed':
+            return "Couldn't reach the matchmaking server. Check your connection, or try Practice vs Bot.";
+          default: return 'Connection problem: ' + ((err && (err.type || err.message)) || 'unknown') + '. Try again or play vs the bot.';
+        }
+      }
+
+      /* ---------- Host ---------- */
+      function createRoom(attempt) {
+        attempt = attempt || 0;
+        if (!peerAvailable()) {
+          setOnlineStatus('Online play could not load (PeerJS blocked?). Try Practice vs Bot.', true);
+          return;
+        }
+        const levelKey = levelSelect.value;
+        if (!levelKey || levelKey === ADD_SHEET_OPTION) { toast('Pick a level first.', 'danger'); return; }
+
+        teardownNetwork();
+        setLandingBusy(true);
+        setOnlineStatus('Creating room…');
+        state.mode = 'host';
+        state.mySide = 0;
+        state.roomLevel = levelKey;
+        state.roomLevelLabel = getLevelLabel(levelKey);
+        const code = randomCode();
+        const peer = new Peer(PEER_PREFIX + code, { debug: 0 });
+        state.peer = peer;
+
+        state.connectTimer = setTimeout(() => {
+          if (state.peer !== peer || peer.open) return;
+          teardownNetwork();
+          state.mode = null;
+          setLandingBusy(false);
+          setOnlineStatus("Couldn't reach the matchmaking server. Your network may block it — try Practice vs Bot.", true);
+        }, CONNECT_TIMEOUT_MS);
+
+        peer.on('open', () => {
+          if (state.peer !== peer) return;
+          clearTimeout(state.connectTimer);
+          state.connectTimer = null;
+          state.code = code;
+          setLandingBusy(false);
+          setOnlineStatus('');
+          // Warm the vocab cache so the match starts instantly.
+          loadVocabulary(levelKey);
+          enterLobby();
+        });
+
+        peer.on('connection', (conn) => {
+          if (state.peer !== peer) return;
+          if ((state.conn && state.conn.open) || state.currentScreen !== 'lobby') {
+            conn.on('open', () => {
+              try { conn.send({ t: 'full' }); } catch (err) { /* ignore */ }
+              setTimeout(() => { try { conn.close(); } catch (err) { /* ignore */ } }, 300);
+            });
+            return;
+          }
+          wireConnection(conn);
+        });
+
+        peer.on('disconnected', () => {
+          // Lost the broker (not the opponent). Existing data channels keep working.
+          if (state.peer === peer && !peer.destroyed) {
+            setTimeout(() => { try { if (state.peer === peer && peer.disconnected && !peer.destroyed) peer.reconnect(); } catch (err) { /* ignore */ } }, 1500);
+          }
+        });
+
+        peer.on('error', (err) => {
+          if (state.peer !== peer) return;
+          console.info('[duelarena] host peer error:', err && err.type);
+          if (err && err.type === 'unavailable-id' && attempt < 4) {
+            createRoom(attempt + 1);   // code collision — pick another
+            return;
+          }
+          if (peer.open && state.currentScreen !== 'landing') {
+            // Broker hiccup after the room exists — keep going if we can.
+            if (err && (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed')) return;
+          }
+          if (!peer.open) {
+            teardownNetwork();
+            state.mode = null;
+            setLandingBusy(false);
+            setOnlineStatus(peerErrorMessage(err), true);
+          }
+        });
+      }
+
+      /* ---------- Guest ---------- */
+      function joinRoom(code) {
+        if (!peerAvailable()) {
+          setOnlineStatus('Online play could not load (PeerJS blocked?). Try Practice vs Bot.', true);
+          return;
+        }
+        code = sanitizeCode(code);
+        if (code.length !== CODE_LEN) { toast('Enter a valid 5-character room code.', 'danger'); return; }
+
+        teardownNetwork();
+        setLandingBusy(true);
+        setOnlineStatus('Connecting to room ' + code + '…');
+        state.mode = 'guest';
+        state.mySide = 1;
+        state.roomLevel = null;
+        state.roomLevelLabel = '';
+        const peer = new Peer({ debug: 0 });
+        state.peer = peer;
+
+        const fail = (message) => {
+          if (state.peer !== peer) return;
+          teardownNetwork();
+          state.mode = null;
+          setLandingBusy(false);
+          setOnlineStatus(message, true);
+        };
+
+        state.connectTimer = setTimeout(() => {
+          if (state.peer !== peer || (state.conn && state.conn.open)) return;
+          fail(peer.open
+            ? "Couldn't connect to the host. A strict network or firewall may block peer-to-peer — try Practice vs Bot."
+            : "Couldn't reach the matchmaking server. Your network may block it — try Practice vs Bot.");
+        }, CONNECT_TIMEOUT_MS);
+
+        peer.on('open', () => {
+          if (state.peer !== peer) return;
+          const conn = peer.connect(PEER_PREFIX + code, { reliable: true, serialization: 'json' });
+          state.code = code;
+          wireConnection(conn);
+        });
+
+        peer.on('disconnected', () => {
+          if (state.peer === peer && !peer.destroyed && state.conn && state.conn.open) {
+            setTimeout(() => { try { if (state.peer === peer && peer.disconnected && !peer.destroyed) peer.reconnect(); } catch (err) { /* ignore */ } }, 1500);
+          }
+        });
+
+        peer.on('error', (err) => {
+          if (state.peer !== peer) return;
+          console.info('[duelarena] guest peer error:', err && err.type);
+          if (state.conn && state.conn.open) return; // broker issue after connecting — ignore
+          fail(peerErrorMessage(err));
+        });
+      }
+
+      /* ---------- Shared connection wiring ---------- */
+      function wireConnection(conn) {
+        state.conn = conn;
+        state.oppGone = false;
+
+        conn.on('open', () => {
+          if (state.conn !== conn) return;
+          if (state.connectTimer) { clearTimeout(state.connectTimer); state.connectTimer = null; }
+          state.lastSeen = Date.now();
+          startHeartbeat();
+          send({
+            t: 'hello', v: 1, name: myName(),
+            level: state.mode === 'host' ? state.roomLevel : undefined,
+            levelLabel: state.mode === 'host' ? state.roomLevelLabel : undefined,
+          });
+          if (state.mode === 'guest') {
+            setLandingBusy(false);
+            setOnlineStatus('');
+            try { history.replaceState(null, '', location.pathname); } catch (err) { /* ignore */ }
+          }
+        });
+
+        conn.on('data', (msg) => {
+          if (state.conn !== conn) return;
+          state.lastSeen = Date.now();
+          try { handleMessage(msg); } catch (err) { console.error('[duelarena] bad message:', err); }
+        });
+
+        conn.on('close', () => dropConnection(conn));
+        conn.on('error', (err) => {
+          console.warn('[duelarena] connection error:', err && err.type);
+          dropConnection(conn);
+        });
+      }
+
+      function handleMessage(msg) {
+        if (!msg || typeof msg !== 'object') return;
+        switch (msg.t) {
+          case 'ping':
+            break;
+          case 'hello':
+            state.oppName = cleanName(msg.name, state.mode === 'host' ? 'Guest' : 'Host');
+            if (state.mode === 'guest') {
+              state.roomLevel = typeof msg.level === 'string' ? msg.level : null;
+              state.roomLevelLabel = cleanName(msg.levelLabel, 'Host\'s list');
+              enterLobby();
+            } else {
+              state.oppReady = false;
+              state.meReady = false;
+              renderLobby();
+              toast(state.oppName + ' joined the room!', 'success');
+            }
+            break;
+          case 'full':
+            resetToLanding('That room is already full.', 'danger');
+            break;
+          case 'ready':
+            state.oppReady = true;
+            renderLobby();
+            maybeStartFromLobby();
+            break;
+          case 'start':
+            if (state.mode !== 'guest') break;
+            {
+              const questions = sanitizeQuestions(msg.questions);
+              if (!questions) { toast('Received a broken question list.', 'danger'); break; }
+              state.engine = null;
+              beginBattle(questions, typeof msg.level === 'string' ? msg.level : (state.roomLevel || levelSelect.value));
+            }
+            break;
+          case 'answer':
+            if (state.mode !== 'host' || !state.engine || !state.inMatch) break;
+            if (state.engine.submit(1, Number(msg.i), !!msg.correct, Number(msg.ms))) publish();
+            break;
+          case 'state':
+            if (state.mode !== 'guest' || !msg.s || !Array.isArray(msg.s.hp)) break;
+            applySnap(msg.s);
+            break;
+          case 'rematch':
+            state.rematchOpp = true;
+            if (state.currentScreen === 'result') {
+              resultNoteEl.textContent = state.rematchMe ? 'Starting rematch…' : `${state.oppName} wants a rematch!`;
+            }
+            maybeStartRematch();
+            break;
+          case 'leave':
+            dropConnection(state.conn);
+            break;
+          default:
+            break;
+        }
+      }
+
+      /** The opponent is gone (left, closed the tab, or timed out). */
+      function dropConnection(conn) {
+        if (!conn || state.conn !== conn) return;
+        state.conn = null;
+        stopHeartbeat();
+        try { conn.close(); } catch (err) { /* ignore */ }
+        state.oppGone = true;
+        const name = state.oppName || 'Your opponent';
+
+        if (state.inMatch && !state.resultShown) {
+          const snap = state.engine
+            ? (state.engine.forfeit(1, 'disconnect'), state.engine.snapshot())
+            : Object.assign({}, state.snap, { over: true, winner: state.mySide, reason: 'disconnect', hit: null, seq: (state.snap ? state.snap.seq : 0) + 1 });
+          toast(name + ' left the duel.', 'danger');
+          applySnap(snap);
+          return;
+        }
+
+        if (state.currentScreen === 'result') {
+          rematchBtn.disabled = true;
+          resultNoteEl.textContent = name + ' has left the room.';
+          return;
+        }
+
+        if (state.currentScreen === 'lobby') {
+          if (state.mode === 'host' && state.peer && !state.peer.destroyed) {
+            state.oppReady = false;
+            state.meReady = false;
+            state.oppName = 'Opponent';
+            state.oppGone = false;
+            renderLobby();
+            toast(name + ' left. Waiting for a new opponent…', 'danger');
+          } else {
+            resetToLanding('The host closed the room.', 'danger');
+          }
+        }
+      }
+
+      /* ---------------------------------------------------------
+         Lobby
+      --------------------------------------------------------- */
+      function enterLobby() {
+        state.meReady = false;
+        state.oppReady = false;
+        lobbyCodeDisplay.textContent = state.code || '-----';
+        lobbyLevelEl.textContent = 'Level: ' + (state.roomLevelLabel || getLevelLabel(state.roomLevel || levelSelect.value));
+        copyLinkBtn.hidden = false;
+        renderLobby();
+        showScreen('lobby');
+      }
+
+      function renderLobby() {
+        const connected = !!(state.conn && state.conn.open) && !state.oppGone;
+        const host = state.mode === 'host'
+          ? { name: myName(), me: true, ready: state.meReady }
+          : { name: state.oppName, me: false, ready: state.oppReady };
+        const guest = state.mode === 'host'
+          ? (connected ? { name: state.oppName, me: false, ready: state.oppReady } : null)
+          : { name: myName(), me: true, ready: state.meReady };
+
+        const chip = (p, crown) => {
+          if (!p) return '<div class="player-chip player-chip--empty"><span class="player-chip__name">Waiting for opponent…</span></div>';
+          const badge = p.ready ? '<span class="badge">Ready</span>' : '<span class="badge badge--pending">Not ready</span>';
+          return `<div class="player-chip${p.me ? ' player-chip--me' : ''}">
+            <span class="player-chip__name">${escapeHtml(p.name)}${p.me ? ' (You)' : ''}${crown ? ' 👑' : ''}</span>
+            ${badge}
+          </div>`;
+        };
+        lobbyPlayersList.innerHTML = chip(host, true) + chip(guest, false);
+
+        if (!connected) {
+          lobbyStatus.textContent = 'Share the code or invite link — waiting for opponent to join…';
+          readyBtn.disabled = true;
+          readyBtn.textContent = 'Ready Up';
+        } else {
+          readyBtn.disabled = state.meReady;
+          readyBtn.textContent = state.meReady ? 'Ready ✓' : 'Ready Up';
+          lobbyStatus.textContent = state.meReady
+            ? (state.oppReady ? 'Starting…' : 'Waiting for opponent to ready up…')
+            : 'Both players are here — ready up to begin!';
+        }
+      }
+
+      async function maybeStartFromLobby() {
+        if (state.mode !== 'host' || !state.meReady || !state.oppReady || state.inMatch) return;
+        await hostStartMatch();
+      }
+
+      async function hostStartMatch() {
+        if (state.mode !== 'host' || !state.conn || !state.conn.open || state.inMatch || state.starting) return;
+        state.starting = true;
+        try {
+          const questions = await buildQuestions(state.roomLevel);
+          if (!state.conn || !state.conn.open) return;
+          state.engine = createEngine(questions.length);
+          send({ t: 'start', level: state.roomLevel, levelLabel: state.roomLevelLabel, questions });
+          beginBattle(questions, state.roomLevel);
+        } catch (err) {
+          console.error('[duelarena] failed to start battle:', err);
+          toast('Failed to start the battle. Try again.', 'danger');
+        } finally {
+          state.starting = false;
+        }
+      }
+
+      function maybeStartRematch() {
+        if (state.mode === 'host' && state.rematchMe && state.rematchOpp && state.currentScreen === 'result') {
+          hostStartMatch();
+        }
+      }
+
+      readyBtn.addEventListener('click', () => {
+        if (!state.conn || !state.conn.open || state.meReady) return;
+        state.meReady = true;
+        send({ t: 'ready' });
+        renderLobby();
+        maybeStartFromLobby();
+      });
+
+      createBtn.addEventListener('click', () => createRoom(0));
+      joinBtn.addEventListener('click', () => joinRoom(joinCodeInput.value));
+
+      async function copyText(text, okMsg) {
+        try {
+          await navigator.clipboard.writeText(text);
+          toast(okMsg, 'success');
+        } catch (err) {
+          toast('Copy failed — ' + text, 'danger');
+        }
+      }
+
+      function inviteLink() {
+        const level = state.roomLevel || levelSelect.value;
+        let url;
+        try {
+          url = new URL(curriculumShareLink(level));
+          if (resolveLevelKey(level).builtin) url.searchParams.delete('level');
+        } catch (err) {
+          url = new URL(location.pathname, location.href);
+        }
+        url.searchParams.set('room', state.code || '');
+        return url.toString();
+      }
+
+      copyCodeBtn.addEventListener('click', () => copyText(state.code || '', 'Room code copied!'));
+      copyLinkBtn.addEventListener('click', () => copyText(inviteLink(), 'Invite link copied!'));
+
+      leaveLobbyBtn.addEventListener('click', () => {
+        leaveRoom();
+        resetToLanding();
+      });
+
+      /* ---------------------------------------------------------
+         Battle / result buttons
+      --------------------------------------------------------- */
+      leaveBattleBtn.addEventListener('click', () => {
+        if (state.resultShown || !state.inMatch) return;
+        if (!confirm('Forfeit this duel? It counts as a loss.')) return;
+        state.resultShown = true;
+        recordResult('lose');
+        if (state.mode !== 'bot') leaveRoom();
+        resetToLanding('You forfeited the match.', 'danger');
+      });
+
+      rematchBtn.addEventListener('click', () => {
+        if (state.mode === 'bot') {
+          const levelKey = state.levelKey;
+          if (levelKey && levelSelect.value !== levelKey && VOCAB_LEVELS.some((l) => l.id === levelKey)) levelSelect.value = levelKey;
+          startBotMatch();
+          return;
+        }
+        if (!state.conn || !state.conn.open) { rematchBtn.disabled = true; return; }
+        state.rematchMe = true;
+        send({ t: 'rematch' });
+        rematchBtn.disabled = true;
+        rematchBtn.textContent = 'Waiting for opponent…';
+        resultNoteEl.textContent = state.rematchOpp ? 'Starting rematch…' : `Rematch requested — waiting for ${state.oppName}.`;
+        maybeStartRematch();
+      });
+
+      backMenuBtn.addEventListener('click', () => {
+        if (state.mode !== 'bot') leaveRoom();
+        resetToLanding();
+      });
+
+      window.addEventListener('pagehide', () => {
+        send({ t: 'leave' });
+        if (state.peer) { try { state.peer.destroy(); } catch (err) { /* ignore */ } }
+      });
+
+      /* ---------------------------------------------------------
+         Invite links: duelarena.html?room=CODE[&sheet=…]
+      --------------------------------------------------------- */
+      const params = new URLSearchParams(location.search);
+      const roomParam = sanitizeCode(params.get('room'));
+      if (roomParam.length === CODE_LEN) {
+        joinCodeInput.value = roomParam;
+        const tryJoin = (tries) => {
+          if (peerAvailable()) joinRoom(roomParam);
+          else if (tries > 0) setTimeout(() => tryJoin(tries - 1), 250);
+          else setOnlineStatus('Online play could not load (PeerJS blocked?). Try Practice vs Bot.', true);
+        };
+        tryJoin(40);
+      }
+    });
+  </script>
+</body>
+
+</html>
